@@ -412,3 +412,151 @@ end loop
 
 return failure
 ```
+#pagebreak()
+= Uninformed search strategies
+== Breadth-first search
+=== Espandere il nodo meno profondo
+La *frontier* ovvero la frontiera (nodi che non sono ancora stati scoperti) sono rappresentati come code FIFO, il nuovo sucessore viene messo alla fine.
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 8pt,
+
+  image("assets/Screenshot From 2026-10-08 21-29-56.png", width: 100%),
+  image("assets/image-17.png", width: 100%),
+
+  image("assets/image-18.png", width: 100%),
+  image("assets/image-19.png", width: 100%),
+)
+```typc
+function BFS(problem) returns a solution, or failure
+    node ← node with State=problem.Initial-State, Path-Cost=0
+    if problem.Goal-Test(node.State) then return node
+    explored ← empty set
+    frontier ← FIFO queue with node as the only element
+
+    loop do
+        if frontier is empty then return failure
+        node ← Pop(frontier)
+        add node.State to explored
+
+        for each action in problem.Actions(node.State) do
+            child ← Child-Node(problem, node, action)
+
+            if child.State is not in explored or frontier then
+                if problem.Goal-Test(child.State) then return child
+                frontier ← Insert(child)
+            end if
+        end for
+    end loop
+```
+#pagebreak()
+=== Proprietà
+*Completo?* si. se b è finito (numero nodi) \
+*Tempo?* $b+b^2+b^3+...+b^d = Omicron(b^d)$ \
+*spazio?* $Omicron(b^d)$ (ogni nodo in memoria) \
+*ottimale?* si se il costo rimane costante ad ogni passagio (in generale non lo è) \
+
+#colorful-boxes.colorbox(
+  title: "Spazio",
+  color: "grey",
+  width: auto,
+)[
+  E' il problema principale di BFS, poiche può generare nodi a 100MB/sec in 24h può raggiungere 8640GB
+]
+
+== Uniform cost search
+Espandere il nodo non espanso a costo minimo (i.e minimum step cost), una versione di Dijkstra specializzata in ricerca
+
+=== Implementazione
+*frontier* = coda ordinata per path cost, dal più basso al più alto (equivalente a BFS se il costo ad ogni step è costante)
+=== Proprietà
+*Completo?* si. se il costo ad ogni step è $> epsilon$ \
+*Tempo?* #text("#") di nodi con $g <=$ del costo ottimale, $O(b^(1 + floor(C^* / epsilon)))$ dove $C*$ è il costo ottimale \
+*spazio?* #text("#") di nodi con $g <=$ del costo ottimale, $O(b^(1 + floor(C^* / epsilon)))$ dove $C*$ è il costo ottimale
+*ottimale?* si, i nodi si espandono in ordine di $g(n)$ \
+
+#colorful-boxes.colorbox(
+  title: "due modifiche a BFS per ottener una UCS",
+  color: "grey",
+  width: auto,
+)[
+  1) Goal test quando espandi, non quando generi\
+  2) Sostituire un nodo nella frontier se trovi un percorso meno costoso
+]
+
+=== Ottimalità di UCS
+#figure(image("assets/image-20.png"))
+
+Consideriamo la mappa in figura e UCS, ci dimostra che per l'appunto: \
+  1) Goal test quando espandi, non quando generi\
+  2) Sostituire un nodo nella frontier se trovi un percorso meno costoso
+
+
+#pagebreak()
+== Depth-first search
+=== Implementazione
+*frontier* = coda LIFO
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 8pt,
+
+  image("assets/image-28.png"),
+  image("assets/image-22.png"),
+
+  image("assets/image-23.png"),
+  image("assets/image-24.png"),
+  image("assets/image-25.png"),
+  image("assets/image-26.png"),
+  image("assets/image-27.png")
+
+)
+
+==== Implementazione ricorsiva
+```typc
+function DLS(problem, limit) returns soln/fail/cutoff
+    R-DLS(Make-Node(problem.Initial-State), problem, limit)
+
+function R-DLS(node, problem, limit) returns soln/fail/cutoff
+    if problem.Goal-Test(node.State) then return node
+    else if limit = 0 then return cutoff
+    else
+        cutoff-occurred? ← false
+
+        for each action in problem.Actions(node.State) do
+            child ← Child-Node(problem, node, action)
+            result ← R-DLS(child, problem, limit-1)
+
+            if result = cutoff then cutoff-occurred? ← true
+            else if result ≠ failure then return result
+        end for
+
+        if cutoff-occurred? then return cutoff
+        else return failure
+    end else
+```
+=== Proprietà
+*Completo?* no, fallisce per spazzi con profondità infinit e in presenza di cappi.
+Modifiche al grafo per evitare stati ripetuti portano a rendere il sistema completo \
+*Tempo?* $Omicron(b^m)$: terribile se m è più grande di d \
+*spazio?* $Omicron(b m)$ spazio lineare \
+*ottimale?* No! \
+=== Variante: Iterative deepening search
+#figure(image("assets/image-29.png"))
+```typc
+function IDS(problem) returns a solution
+    inputs: problem, a problem
+
+    for depth ← 0 to ∞ do
+        result ← DLS(problem, depth)
+        if result ≠ cutoff then return result
+    end
+```
+==== Proprietà
+*Completo?* si \
+*Tempo?* $d b^1 + (d - 1)b^2 + ... + b^d = Omicron(b^d)$ \
+*spazio?* $Omicron(b^d)$  \
+*ottimale?* si, se il costo ad ogni step è = 1 \
+
+// riprendere pagina 44 
