@@ -1,18 +1,87 @@
+
 #import "@preview/colorful-boxes:1.4.3"
+
 #set page(
   paper: "a4",
-  numbering: "1"
-)
-#set heading(numbering: "1.1")
-#set text(
-  size: 10pt,
+  margin: (
+    top: 2.5cm,
+    bottom: 2.5cm,
+    left: 3cm,
+    right: 3cm,
+  ),
+  numbering: "1",
 )
 
-#outline()
+#set text(
+  font: "New Computer Modern",
+  size: 11pt,
+  lang: "it",
+)
+
+#set par(justify: true)
+
+#set heading(numbering: "1.1")
+
+// =======================
+// COPERTINA
+// =======================
+
+#align(center)[
+  #v(2cm)
+
+  #text(size: 14pt)[
+    Università degli Studi di Verona
+  ]
+
+
+
+  #text(size: 26pt, weight: "bold")[
+    Intelligenza Artificiale
+  ]
+
+  #v(0.4cm)
+
+  #text(size: 14pt)[
+    Appunti del corso 2026/2027
+  ]
+
+  #v(1.5cm)
+
+  #image(
+    "assets/image-41.png",
+    width: 75%,
+    fit: "contain",
+  )
+
+  #v(1.5cm)
+
+  #text(size: 12pt)[
+    3.14
+  ]
+
+  #v(0.4cm)
+
+  #text(size: 11pt)[
+    Anno Accademico 2026/2027
+  ]
+]
+
+// =======================
+// INDICE
+// =======================
+
 #pagebreak()
 
+#outline(
+  title: [Indice],
+  indent: auto,
+)
 
+#pagebreak()
 
+// =======================
+// CONTENUTO
+// =======================
 
 = Che cos'è l'intelligenza artificiale
 
@@ -34,7 +103,6 @@ e qui si usa per la prima volta il termine "Artificial Intelligence"
 Robocup 2026
 #image("assets/image.png")
 
-#pagebreak()
 
 = Che cos'è il machine learning
 
@@ -61,7 +129,6 @@ Il termine agent viene usato molto, anche da ricercatori di aree molto vicine, m
 Per questo gli autori ritengono utile discutere il significato del termine e distinguono due modi principali di intendere “agente”: uno debole, relativamente poco controverso, e uno più forte, più discutibile.
 
 #figure(image("assets/image-3.png", width: 50%))
-#pagebreak()
 
 Un agente è dotato di 3 caratteristiche:
 - Analizza l'ambiente
@@ -89,12 +156,10 @@ $ text("T : state, action") -> text("next state") $
 $ text("R : state, action,(next state") -> text("real number") $
 - *policy*: scelta delle azioni per massimare la ricompensa nel lungo termine
 $ pi: text("(state)") -> text("action") $
-#pagebreak()
 ==== Frozen Lake
-#figure(image("assets/image-5.png", width: 55%))
+#figure(image("assets/image-5.png", width: 40%))
 Prendimao in considerazione gli elementi principali della catena di Markov:\
-#figure(image("assets/image-6.png", width: 55%))
-#pagebreak()
+#figure(image("assets/image-6.png", width: 40%))
 = Risoluzione dei problemi mediante ricerca
 Con il termine *agente* ci possiamo riferire a: umani, robot, softbot, termostati ecc.. \ 
 L' *agent funtion* associa a ogni possibile sequenza di percezioni un’azione da eseguire:
@@ -103,11 +168,11 @@ $ f: P^* -> A $
 L'*agent program* invece viene eseguito sul calcolatore per produrre $f$
 
 === Esempio : Vacuum-cleaner world
-#figure(image("assets/image-7.png", width: 60%))
+#figure(image("assets/image-7.png", width: 50%))
 - Perceptions: Posizione nello spazione e il contenuto [A, Dirty]
 - Actions: left, right, Suck, NoOp
 
-#figure(image("assets/image-8.png", width: 60%))
+#figure(image("assets/image-8.png", width: 75%))
 
 #colorful-boxes.colorbox(
   title: "Domanda",
@@ -116,7 +181,7 @@ L'*agent program* invece viene eseguito sul calcolatore per produrre $f$
 )[
   se un agent ha $|P|$ possibili perceptions, quante entries avrà l'agent function dopo $T$ passi?
 ]
-
+#pagebreak()
 #colorful-boxes.colorbox(
   title: "Risposta",
   color: "purple",
@@ -185,7 +250,7 @@ Considerando un esempio: the task of designing an automated taxi:
 
 *Il tipo di ambiente determina in larga misura la progettazione dell'agente*
 
-#figure(image("assets/image-9.png"))
+#figure(image("assets/image-9.png", width: 80%))
 
 Poichè il mondo reale è ovviamente parizalmente osservabile, stocastico, sequenziale, dinamico, continuo e multi agentico
 
@@ -206,7 +271,7 @@ Poichè il mondo reale è ovviamente parizalmente osservabile, stocastico, seque
 - *Spazio degli stati sconosciuto* $arrow$ *problema di esplorazione* (*online*)
 
 *Esempio: Vacuum world* \
-#figure(image("assets/image-10.png"))
+#figure(image("assets/image-10.png", width: 80%))
 
 == Problem solving agents
 
@@ -257,7 +322,7 @@ function Simple-Problem-Solving-Agent(percept) returns an action
   - sequence of cities e.g: Arad, Sibiu, Fagaras, Bucharest 
 ]
 
-#figure(image("assets/image-11.png", width: 82.4%))
+#figure(image("assets/image-11.png", width: 70%))
 Un problema è definito da quattro elementi:
 
 - stato iniziale
@@ -281,7 +346,6 @@ che porta dallo stato iniziale a uno stato obiettivo.*
 Il mondo reale è assurdamente complesso poichè lo spazio degli stati deve essere astratto per risolvere il problema
 
 - stato (astratto) = insieme di stati reali
-
 - azione (astratta) = combinazione complessa di azioni reali
 
 ad esempio, "Arad -> Zerind" rappresenta un insieme complesso
@@ -422,11 +486,11 @@ La *frontier* ovvero la frontiera (nodi che non sono ancora stati scoperti) sono
   columns: (1fr, 1fr),
   gutter: 8pt,
 
-  image("assets/Screenshot From 2026-10-08 21-29-56.png", width: 100%),
-  image("assets/image-17.png", width: 100%),
+  image("assets/Screenshot From 2026-10-08 21-29-56.png", width: 90%),
+  image("assets/image-17.png", width: 90%),
 
-  image("assets/image-18.png", width: 100%),
-  image("assets/image-19.png", width: 100%),
+  image("assets/image-18.png", width: 90%),
+  image("assets/image-19.png", width: 90%),
 )
 ```typc
 function BFS(problem) returns a solution, or failure
@@ -502,17 +566,17 @@ Consideriamo la mappa in figura e UCS, ci dimostra che per l'appunto: \
   columns: (1fr, 1fr),
   gutter: 8pt,
 
-  image("assets/image-28.png"),
-  image("assets/image-22.png"),
+  image("assets/image-28.png",width: 90%),
+  image("assets/image-22.png",width: 90%),
 
-  image("assets/image-23.png"),
-  image("assets/image-24.png"),
-  image("assets/image-25.png"),
-  image("assets/image-26.png"),
-  image("assets/image-27.png")
+  image("assets/image-23.png",width: 90%),
+  image("assets/image-24.png",width: 90%),
+  image("assets/image-25.png",width: 90%),
+  image("assets/image-26.png",width: 90%),
+  image("assets/image-27.png",width: 90%)
 
 )
-
+#pagebreak()
 ==== Implementazione ricorsiva
 ```typc
 function DLS(problem, limit) returns soln/fail/cutoff
@@ -560,3 +624,165 @@ function IDS(problem) returns a solution
 *ottimale?* si, se il costo ad ogni step è = 1 \
 
 // riprendere pagina 44 
+== BSF vs IDS
+Scegliamo b = 10 e d = 5, avremmo che :
+$ N(text("IDS")) = 6+50+400+ ... = 123456 $ 
+$ N(text("BFS")) = 10+100+1000+ ... = 111101 $
+
+IDS ripete alcuni nodi ma il costo non diventa tanto più grande di BFS poichè la complessità è dettata dalla crescita esponenziale dei nodi
+
+== Riassunto delle Proprietà
+Basandoci su tree-search
+
+#figure(image("assets/image-30.png", width: 70%))
+
+#pagebreak()
+= Informed search strategies
+Una strategia è definita dalla scelta dell'ordine di espansione dei nodi
+
+== Best-First search
+
+*Idea* = usare una funzione di valutazione per ogni nodo (stima di desiderabilità) per espandere il nodo non espanso più promettente (desidedrato)
+\
+*Implementazione* = la *frontier* è una coda ordinata descrescente in base alla desiderabilità\
+*Casi speciali* :
+- greedy best-first search
+- $A^*$ search
+
+*Roamania with straight-line distances to Bucharest*\
+#figure(image("assets/image-31.png", width: 60%))
+
+=== Greedy search
+Sia una funzione di valutazione $h(n)$ euristica t.c Stima del costo da n all'obiettivo più vicino. \
+Esempio: $h_(S L D)(n)$ = straight-line distance da n a Bucharest.\
+\
+Greedy search espande il nodo che si avvicina di più all'obiettivo
+==== Greedy search esempio:
+#figure(image("assets/image-32.png", width: 80%))
+#figure(image("assets/image-33.png", width: 80%))
+#figure(image("assets/image-34.png", width: 80%))
+==== Proprietà:
+*Completo?* No, può bloccarsi in loop (completo in spazi finiti e con check su cicli) \
+*Tempo?* $Omicron(b^m)$ ma una buona euristica può migliorare mostrosamente \
+*spazio?* $Omicron(b^m)$ (ogni nodo in memoria) \
+*ottimale?* No \
+
+=== $A^*$ search
+*Idea* = evitare di espandere path che hanno un costo elevato.
+\
+Sia una funzione di valutazione $f(n) = g(n) + h(n)$ con: \ 
+- $g(n)$ = costo per raggiungere nodo N
+- $h(n)$ = stima del costo dall'obiettivo ad N
+- $f(n)$ = stima del costo totale da N all'obiettivo
+\
+$A^*$ usa una ottima euristica: \
+Sia $h(n) <= h^*(n)$ dove $h^*(n)$ è il vero costo da n (richiede che $h(n) > 0$, quindi $h(G) = 0$ per ogni obiettivo $G$)
+
+==== $A^*$ search esempio:
+#figure(image("assets/image-35.png", width: 80%))
+#figure(image("assets/image-36.png", width: 80%))
+#figure(image("assets/image-37.png", width: 80%))
+
+==== Proprietà di $A^*$
+*Completo?* Si, fino a quando non ci sono infiniti doci con $f < f(g)$ \
+*Tempo?* Esponenziale \
+*spazio?* Ogni nodo in memoria \
+*ottimale?* Si, *ma* richiede assunzioni euristiche (ammissibilità e consistenza) e search strategy (tree o graph search) \
+
+== Definizione di euristica 
+=== Euristica consistente
+Una euristica si può definire consistente se:
+$ h(n) <= c(n,a,n') + h(n') $
+1) Possiamo dimostrare che se $h$ è consistente allora $f(n)$ non è decrescente su tutto il path \
+2) $A^*$ espande nodi in ordine di crescita rispetto ad $f$, di conseguenza, troverà la soluzione a costo minimo. \ 
+#figure(image("assets/image-38.png", width: 30%)) 
+=== Euristica ammissibile vs Euristica consistente
+*Consistenza* $arrow$ *Ammissibile* \
+si può dimostrare per induzione sul percorso verso l'obiettivo. \ \
+*Ammissibile* $arrow.not$ *Consistenza* \
+basti trovare un controesempio...
+\
+
+#colorful-boxes.colorbox(
+  color: "grey",
+  width: auto,
+)[
+  Tree-Search + euristica ammissibile $arrow$ ottimale per $A^*$ \
+  Graph-Search + euristica ammissibile $arrow.not$ ottimale per $A^*$ \ \
+  È possibile scartare il percorso ottimale verso un nodo già visitato, quindi: \
+  Graph-Search + euristica consistente $arrow$ ottimale per $A^*$
+  
+]
+
+#figure(image("assets/image-40.png", width: 60%))
+=== Euristica ammissibile
+Prendiamo il problema del 8-puzzle:\
+$h_1(n)$ = numero di tessere fuori posto
+$h_2(n)$ = distanza di Manhattan totale
+
+
+#colorful-boxes.colorbox(
+  title: "Distanza di Manhattan",
+  color: "purple",
+  width: auto,
+)[
+  è una metrica che misura la distanza tra due punti sommando il valore assoluto delle differenze delle loro coordinate\
+  #figure(image("assets/image-39.png", width: 50%))
+]
+
+$h_1(S)$ = 6\
+$h_2(n)$ = $4+0+3+3+1+0+2+1 = 14$ \ \ 
+Se $h_2(n) >= h_1(n)$ per ogni n, allora $h_2$ domina $h_1$ ed è migliore per la ricerca
+
+=== Esempi tipici di ricerca:
+Per d = 14: \
+IDS = 3473941 nodi\
+$A^*(h_1) = 539$ nodi \ 
+$A^*(h_2) = 113$ nodi
+
+\
+Per d = 24: \
+IDS $approx$ 54000000000 nodi\
+$A^*(h_1) = 39135$ nodi \ 
+$A^*(h_2) = 1641$ nodi
+\
+*Data una euristica ammissibile $h_a$ e $h_b$ :*
+$ h(n) = max(h_a(n), h_b(n))$
+
+#colorful-boxes.colorbox(
+  color: "purple",
+  width: auto,
+)[
+  Possiamo quindi dire: \ 
+  - Ammissibile: non sovrastima mai il costo reale minimo per raggiungere l'obiettivo.
+
+  - Consistente: rispetta una particolare relazione tra il costo stimato di due nodi vicini.
+]
+=== Problemi rilassati
+Euristiche ammissibili possono essere ricavate dalla esatta soluzione del costo della *versione rilassata* del problema, ovvero un problema al quale sono stati eliminati alcuni vincoli rendendo il problema più semplice da risolvere
+- Se le regole di 8-puzzle sono rilassate quindi una casella può essere mossa *ovunque*, allora $h_1(n)$ ci da la soluzione più rapida
+- Se le regole di 8-puzzle sono rilassate quindi una casella può essere mossa  in una qualsiasi casella adiacente, allora $h_2(n)$ ci da la soluzione più rapida
+
+#colorful-boxes.colorbox(
+  title: "Key point"
+,  color: "grey",
+  width: auto,
+)[
+  Il costo della soluzione ottimale di un *problema rilassato* non è più grande del costo della soluzione ottimale del *problema reale*
+]
+
+=== Funzioni euristiche e algoritmi di ricerca
+- Le *funzioni euristiche* stimano il costo del percorso più breve per raggiungere l'obiettivo.
+
+- Buone euristiche possono ridurre drasticamente il costo della ricerca.
+
+- *Greedy Best-First Search*:
+  - Espande il nodo con il valore $h(n)$ più basso.
+  - Non è completo in generale e non garantisce una soluzione ottima.
+
+- *A\* Search*:
+  - Espande il nodo con il valore $f(n) = g(n) + h(n)$ più basso.
+  - È completo e ottimale sotto opportune condizioni.
+  - È anche *ottimamente efficiente* (a meno dei casi di parità nella scelta dei nodi, per la ricerca in avanti).
+
+- Le *euristiche ammissibili* possono essere ricavate dalla soluzione esatta di problemi rilassati.
