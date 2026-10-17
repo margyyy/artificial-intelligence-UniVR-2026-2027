@@ -684,7 +684,7 @@ Sia $h(n) <= h^*(n)$ dove $h^*(n)$ è il vero costo da n (richiede che $h(n) > 0
 #figure(image("assets/image-37.png", width: 80%))
 
 ==== Proprietà di $A^*$
-*Completo?* Si, fino a quando non ci sono infiniti doci con $f < f(g)$ \
+*Completo?* Si, fino a quando non ci sono infiniti nodi con $f < f(g)$ \
 *Tempo?* Esponenziale \
 *spazio?* Ogni nodo in memoria \
 *ottimale?* Si, *ma* richiede assunzioni euristiche (ammissibilità e consistenza) e search strategy (tree o graph search) \
