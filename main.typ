@@ -14,7 +14,7 @@
 
 #set text(
   font: "New Computer Modern",
-  size: 11pt,
+  size: 10pt,
   lang: "it",
 )
 
@@ -786,3 +786,254 @@ Euristiche ammissibili possono essere ricavate dalla esatta soluzione del costo 
   - È anche *ottimamente efficiente* (a meno dei casi di parità nella scelta dei nodi, per la ricerca in avanti).
 
 - Le *euristiche ammissibili* possono essere ricavate dalla soluzione esatta di problemi rilassati.
+
+#pagebreak()
+
+= Local Search
+
+Local Search è un insieme di metodologie euristiche per trovare una soluzione ottimale di problemi difficili, discreti o non differenziabili.
+
+== Iterative improvement algorithms
+
+- In molti problemi di ottimizzazione il *path* diventa irrilevante $arrow$ il goal è la soluzione al problema.
+
+- Lo spazio degli stati = l'insieme delle configurazioni "complete", ovvero che a differenza della ricerca classica in spazi di stati (dove ogni nodo è un passo intermedio e gli stati iniziali sono incompleti) qui ogni stato rappresenta già una soluzione completa.
+
+- Possiamo usare algoritmi iterativi, per esempio invece di dover tenere in memoria un albero completo di ricerca usiamo un singolo nodo per spostarci nell'albero verso la soluzione migliore.
+
+- Adatto poiché usa spazi costanti di memoria (un singolo nodo)
+
+=== Esempio: Travelling Salespersom Problem
+
+L'algoritmo inizia con un tour completo ma non ottimale (cioè un percorso che visita tutte le città e torna all'inizio)
+
+#figure(image("assets/image-45.png", width: 34%))
+
+Nel grafico a sinistra, le linee tratteggiate rosse si intersecano (formano una specie di "X"). Nella geometria euclidea, due linee che si incrociano creano quasi sempre un percorso più lungo rispetto a ridisegnarle in modo da eliminare l'intersezione.
+\
+Applicando una soluzione più ottimale invece:
+#figure(image("assets/image-43.png", width: 30%))
+
+#pagebreak()
+
+=== Esempio: n-queens
+
+- Mettiamo n regine su una scacchiera nxn in modo che non ci siamo due regine sulla stessa riga/colonna/diagonale
+
+- Muoviamo una regina in modo da ridurre il numero di conflitti
+#figure(image("assets/image-46.png", width: 70%))
+
+== Hill-climbing (gradient ascent/descent)
+
+sia:
+```purs
+function Hill-Climbing(problem) returns a state that is a local maximum
+  inputs: problem, a problem
+  local variables: current, a node
+                  neighbor, a node
+
+  current <- Make-Node(problem.Initial-State)
+  loop do
+    neighbor <- a highest-valued
+```
+L'algoritmo si muove alla cieca. Sa solo se sta salendo rispetto alla posizione immediatamente vicina, ma non ha memoria di dove sia stato né ha una visione d'insieme della montagna (non sa dove sia la cima più alta in assoluto)
+\
+Mostriamo ora lo *state-space* del nostro problema:
+#figure(image("assets/image-47.png", width: 80%))
+
+dove *shoulder* è il nostro "minimo locale", dove l'algoritmo potrebbe bloccarsi per passi molto piccoli pensando non ci sia più nessun punto di discesa verso un possibile minimo globale
+\
+Per risolvere questo problema abbiamo 2 soluzioni possibili:
+- *Random-restart hill-climbing (Hill-climbing con riavvii casuali)*: Risolve il problema dei massimi locali. Se l'algoritmo si blocca, ricomincia da un punto completamente casuale dello spazio di ricerca. Ripetendo il processo, diventa "trivially complete" (cioè, con probabilità che tende a 1, prima o poi troverà il massimo globale)
+
+- *Random sideways moves (Mosse casuali laterali)*: Permette all'algoritmo di fare passi laterali (su zone pianeggianti) per sfuggire alle spalle (shoulders), ma con il rischio di entrare in un ciclo infinito (loop) se si trova su un massimo locale piatto
+
+== Simulated Annealing 
+
+*Ispirato alla meccanica statistica:* Prende il nome dal processo di tempra (annealing) dei metalli, in cui il materiale viene riscaldato e poi raffreddato lentamente per raggiungere una struttura cristallina stabile e priva di difetti.
+
+*Accettare mosse "cattive":* A differenza dell'Hill-Climbing (che rifiuta qualsiasi mossa che peggiori la situazione), il Simulated Annealing permette occasionalmente di fare passi "in salita" (o peggiorativi), ma diminuisce gradualmente questa frequenza con il passare del tempo
+
+*Fasi dell'algoritmo:*
+- All'inizio: Permette molte mosse casuali, consentendo all'algoritmo di saltare fuori da valli profonde e esplorare nuove zone dello spazio delle soluzioni. 
+- Verso la fine: La probabilità di fare mosse casuali diminuisce drasticamente, permettendo all'algoritmo di concentrarsi sul raffinamento della ricerca attorno a una buona soluzione.
+
+#figure(image("assets/image-48.png", width: 65%))
+*Pseudo codice:*
+```purs
+function Simulated-Annealing(problem, schedule) returns a solution state
+  inputs: problem, a problem
+          schedule, a mapping from time to "temperature"
+  local variables: current, a node
+                   next, a node
+                   T, a "temperature" controlling prob. of downward steps
+
+  current <- Make-Node(problem.Initial-State)
+  for t <- 1 to infinity do
+    T <- schedule(t)
+    if T = 0 then return current
+    next <- a randomly selected successor of current
+    ΔE <- next.Value - current.Value
+    if ΔE > 0 then current <- next
+    else current <- next only with probability e^(ΔE / T)
+  end
+```
+#pagebreak()
+=== Proprietà del simulated annealing
+Prendendo spunto dal sistema fisico: \
+A una "temperatura" $T$ fissa, la probabilità di occupare un determinato stato segue la distribuzione di Boltzmann: $ p(x) = alpha e^(E(x)/(k T)) $
+
+Se la temperatura $T$ viene ridotta abbastanza lentamente, il sistema è teoricamente garantito di raggiungere sempre lo stato migliore $x^*$
+
+Ciò è dovuto al fatto che, per valori molto piccoli di $T$, il rapporto tra le probabilità dello stato ottimale e di un altro stato ($e^(E(x^*) / (k T)) / e^(E(x) / (k T)) = e^((E(x^*) - E(x)) / (k T))$) diventa enormemente superiore a 1 ($>> 1$).
+
+\
+
+*È una garanzia davvero utile nella pratica?*
+In teoria la convergenza all'ottimo globale è garantita, ma sul piano pratico la risposta è spesso negativa. Dire che la temperatura deve scendere "abbastanza lentamente" significa che potrebbe servire un tempo di calcolo esponenziale, rendendo la garanzia teorica poco utile per problemi reali e complessi.
+
+*Origini e Applicazioni*
+- Sviluppato inizialmente da Metropolis et al. nel 1953 per simulare e modellare processi fisici e termodinamici.
+- Trova grande applicazione nell'ottimizzazione combinatoria, come la progettazione di circuiti integrati (layout VLSI) e la gestione dei turni e dei voli nelle compagnie aeree (airline scheduling).
+
+#figure(image("assets/image-50.png", width: 70%))
+#pagebreak()
+
+== Local beam search
+
+*Cos'è il Local Beam Search?*
+- *Idea principale:* A differenza dell'Hill-Climbing classico che mantiene un solo stato, qui si mantengono traccia di $k$ stati generici contemporaneamente. Ad ogni passo, vengono generati tutti i successori di questi $k$ stati, e tra tutti si scelgono i $k$ migliori in assoluto.
+- *Non sono ricerche indipendenti:* Questa tecnica non corrisponde all'esecuzione di $k$ ricerche in parallelo separate. I vari "fasci" comunicano tra loro: le ricerche che trovano stati promettenti "reclutano" le altre, facendo sì che l'attenzione del gruppo si concentri sulle zone più favorevoli.
+
+*Il Problema Principale*
+- Spesso, a causa della natura dell'algoritmo, tutti i $k$ stati finiscono per convergere e concentrarsi sulla stessa collina locale, perdendo diversità.
+
+*La Soluzione (Stochastic Beam Search)*
+- *Idea:* Invece di scegliere sempre i $k$ successori migliori in modo deterministico, si scelgono $k$ successori in modo *casuale*, dando però una probabilità maggiore (biased) a quelli più validi.
+- *Analogia:* Questo comportamento mostra una forte somiglianza con il meccanismo della **selezione naturale** (simile agli algoritmi genetici).
+
+#figure(image("assets/image-51.png", width: 70%))
+
+== Genetic algorithms
+
+- *Definizione:* Corrispondono a una ricerca a fascio locale stocastica, in cui i nuovi stati successori non vengono generati tramite singole modifiche, ma combinando coppie di stati esistenti.
+
+#figure(image("assets/image-52.png", width: 80%))
+*Le Fasi dell'Algoritmo (dal diagramma):*
+1. *Fitness:* Valutazione del punteggio di idoneità di ciascuno stato (con assegnazione di percentuali di probabilità di selezione).
+2. *Selection:* Scelta degli individui migliori in base alla fitness.
+3. *Pairs & Cross-Over:* Abbinamento in coppie e scambio/ricombinazione di parti delle stringhe per generare nuovi discendenti.
+4. *Mutation:* Introduzione di piccole modifiche casuali nelle stringhe risultanti.
+
+*Proprietà e Dettagli Chiave:*
+- *Codifica:* Richiedono che gli stati siano rappresentati sotto forma di stringhe (a differenza della Programmazione Genetica - GP - che utilizza veri e propri programmi).
+- *Efficacia del Cross-Over:* L'incrocio funziona efficacemente se e solo se le sottostringhe rappresentano componenti autonome e significative del problema (come illustrato nell'esempio delle scacchiere per il problema delle regine).
+- *GAs $\neq$ Evoluzione:* Gli algoritmi genetici sono solo un'astrazione matematica e non vanno confusi con la vera evoluzione biologica (nella realtà, ad esempio, i geni codificano complessi macchinari di replicazione cellulare).
+
+= Local Search In Continuous Space
+
+Partiamo da un esempio:
+
+=== Example: Placing airports in Romania
+*Obiettivo*: localizzare tre aereoporti per minimizzare la somma delle distanze al quadrato per ogni città vicina all'aereoporto. \
+
+#figure(image("assets/image-53.png"))
+- *Airport loc.* $(x_1,x_2),(x_2, y_2),(x_3, y_3)$
+- *City locations* $(x_c, y_c)$
+- $C_a$ cities closest to airport $a arrow$ $(a = {1,2,3})$
+- *objective minimize*: $sum_a sum_(c in C_a) (x_a - x_c)^2 + (y_a - y_c)^2$
+
+==== Come possiamo affrontare questo problema?
+*Discretizzare lo spazio* \
+Rendere lo spazio continuo in uno spazio discreto:
+- Scegliere un $delta$ fisso che rappresenta la dimensione del passo finito
+- Considerare $plus.minus delta$ spostamenti. Ad esempio, se sei in un grafico a due dimensioni $(x, y)$, i tuoi vicini saranno solo i punti $(x+ delta, y)$, $(x- delta, y)$, $(x, y+delta)$ e $(x, y-delta)$. Invece di avere infiniti vicini, ora sono limitati.
+- Ora che lo spazio è diventato discreto possiamo usare qualsiasi algoritmo di ricerca discreto 
+*Random perturbations* \ 
+- Prendiamo il nostro punto corrente e proviamo ad aggiungere piccolo rumore casuale.Continuiamo a generare tentativi casuali finché non ne troviamo uno che migliora lo stato corrente. \ È un approccio "a tentativi" molto simile al first-choice, adattato al continuo generando variazioni a caso finché non becchi la salita.
+- *Simulated Annealing (nel continuo)* : il prossimo stato viene scelto in modo casuale (tramite una perturbazione o un campionamento nello spazio continuo), e poi si applica la solita regola di accettazione con la temperatura (es : la formula di Boltzmann) per decidere se accettare anche un peggioramento.
+*Gradient (Discesa/Salita del Gradiente)*: Invece di andare a tentativi con i numeri a caso, si calcoli il gradiente della funzione $f(X)$ analiticamente (dove $X = {x_1, dots, x_n}$ è il vettore delle coordinate/variabili). Il gradiente ci dà la direzione e il verso matematicamente perfetti in cui la funzione cresce più rapidamente, permettendoci di fare un passo mirato e sicuro.
+
+$ nabla f(X) = lr(( (partial f) / (partial x_1), (partial f) / (partial x_2), ..., (partial f) / (partial x_n) )) $
+
+Applicandolo all'esempio dell'aereoporto abbiamo:
+
+- $f(X) = sum_a sum_(c in C_a) (x_a - x_c)^2 + (y_a - y_c)^2$[cite: 6] \
+  con $X = {x_1, y_1, x_2, y_2, x_3, y_3}$ e $n = 6$
+
+- $(partial f) / (partial x_1) = sum_(c in C_1) 2(x_1 - x_c)$
+
+- Per trovare un estremo, si pone l'equazione: $nabla f(X) = 0$
+
+- Possiamo risolverlo in forma chiusa (*closed form*)?
+#pagebreak()
+== Local Gradient
+
+A volte non riusciamo a risolvere l'equazione globale $nabla f(X) = 0$, tuttavia però possiamo analizzare localmente:
+- eseguire l'aggiornamento in direzione di salita per ciascuna coordinata
+- più ripida è la pendenza (maggiore è la derivata), più ampio è il passo per quella coordinata
+- consideriamo una funzione generale $g(x_1,x_2)$ applicando l'aggiornamento per il gradiente:
+  - $x_1 arrow.l x_1 + alpha * frac(partial g(x_1,x_2), partial x_1), x_2 arrow.l x_2 + alpha * frac(partial g(x_1,x_2), partial x_2) $
+- aggiornamenti in norazione vettoriale:
+  - $X = [x_1 thin x_2]^T, quad nabla g(X) = lr([ (partial g) / (partial x_1) thin (partial g) / (partial x_2) ])^T$
+  - $X <- X + alpha * nabla g(X)$
+- $alpha$ è la dimensione del passo e trovare un $alpha$ ottimale è difficile poichè:
+  - se troppo grande: può allontanarsi troppo dal minimo ottimale
+  - se troppo piccolo: servono più step per trovare un minimo ottimale
+
+#figure(image("assets/image-54.png", width: 50%))
+
+== Newton-Raphson
+- Soluzione efficace per molti problemi di ricerca locale in uno spazio continuo
+- Tecnica generale per trovare le radici di una funzione, ovvero per risolvere un'equazione della forma: 
+$ g(x) = 0 $
+- fissa una stima iniziale della radice $macron(x)_0$
+- aggiorna iterativamente la stima: $macron(x)_(n+1) = macron(x)_n - g(macron(x)_n) / (g'(macron(x)_n))$
+- $g'(x) = d g(x) / d x$ è la derivata prima di $g(x)$
+
+=== Semplice applicazione
+Sia la funzione $g(x) = x^2 - a$ \
+Applicando Newton abbiamo:
+$ x_(n+1) = 1/2 (x_n + frac(a,x_n)) $
+Fissiamo ora a = 4, $x_0 = 1$, risolviamo per $x_i i in {1,2,3}$ \
+Come varia $x_i i in {1,2,dots}$ rispetto a $x_0 in {0.5,1,3}$ ?
+#pagebreak()
+#figure(image("assets/image-55.png", width: 80%))
+#figure(image("assets/image-56.png", width: 80%))
+
+#pagebreak()
+== Interpretazione geometrica del metodo di Newton
+- Supponi che $y = f(x)$ abbia una radice in $x = r$;
+- La retta tangente nel punto $(a, f(a))$ è $y = f(a) + (x - a)f'(a)$
+- Considera $b$ come l'intercetta della retta tangente, $0 = f(a) + (x - a)f'(a)$ allora:
+  $ b = a - f(a) / (f'(a)) $
+- $b$ sarà la stima successiva per il metodo di Newton partendo da $a$
+- Nota: cambiamenti rapidi (forti non linearità) di $f(x)$ in $a$ possono causare una stima errata del punto successivo
+  - $f(x)$ deve essere liscia (continua e derivabile), di solito assumiamo che $f''(x)$ sia continua vicino a $r$
+- La scelta di $x_0$ è cruciale!
+
+== Applicazioni con il gradiente
+- per trovare un estremo di $f(X)$ vogliamo trovare $overline(X)$ tale che $nabla f(overline(X)) = 0$
+- di conseguenza possiamo usare il metodo di Newton, dove $g(X)$ è $nabla f(X)$
+- in questo caso l'equazione di aggiornamento in forma matrice-vettore diventa:
+  - $x <- x - H_f^(-1)(x) nabla f(x)$
+  - dove $H_(i j) = (partial^2 f) / (partial x_i partial x_j)$
+- per problemi ad alta dimensionalità, calcolare le $n^2$ entrate della matrice Hessiana e invertire la matrice $N times N$ può essere proibitivo. Spesso vengono usate versioni approssimate.
+
+
+#colorful-boxes.colorbox(
+  title: "Ricorda",
+  color: "grey",
+  width: auto,
+)[
+  - Questo è un metodo *locale*, quindi soffre di massimi locali, altipiani (*plateau*), ecc.
+  - Il riavvio casuale (*random restart*) e il *simulated annealing* possono essere utili anche negli spazi continui
+]
+
+=== Empirical Gradient
+- A volte possiamo calcolare $f(X)$ per un dato input, ma non possiamo calcolare $nabla f(X) = 0$ nemmeno localmente
+  - Ad esempio, la posizione di un insieme di aeroporti richiede una simulazione su larga scala
+- *Gradiente Empirico:* risposta di $f(X)$ a un piccolo incremento o decremento di $X$
+- *Eseguire una ricerca del gradiente empirico:* equivale a un hill-climbing in una versione discretizzata dello spazio di ricerca
+
+#figure(image("assets/image-57.png", width: 80%))
