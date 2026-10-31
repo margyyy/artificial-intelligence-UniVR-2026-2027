@@ -1036,4 +1036,10 @@ Come varia $x_i i in {1,2,dots}$ rispetto a $x_0 in {0.5,1,3}$ ?
 - *Gradiente Empirico:* risposta di $f(X)$ a un piccolo incremento o decremento di $X$
 - *Eseguire una ricerca del gradiente empirico:* equivale a un hill-climbing in una versione discretizzata dello spazio di ricerca
 
+
 #figure(image("assets/image-57.png", width: 80%))
+#pagebreak()
+
+= Constraint Satisfaction Problem
+
+Nei problemi 
