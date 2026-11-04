@@ -2,5 +2,11 @@
     "cSpell.language": "en,it-IT",
     "cSpell.words": [
         "sottostringhe"
-    ]
+    ],
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/tools"
+    ],
+    "python.defaultInterpreterPath": "/home/daniel/miniconda3/envs/ai-lab/bin/python",
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda"
 }

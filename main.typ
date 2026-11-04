@@ -1042,4 +1042,610 @@ Come varia $x_i i in {1,2,dots}$ rispetto a $x_0 in {0.5,1,3}$ ?
 
 = Constraint Satisfaction Problem
 
-Nei problemi 
+== Standard Search Problem
+
+Nei problemi di ricerca standard:
+- *State*: è una "scatola nera" (*black-box*), ovvero può essere rappresentato con una qualsiasi struttura dati.
+- *Goal test*: può essere una qualsiasi funzsione sugli stati che verifica se l'obiettivo è stato raggiunto.
+- *Successor function*: può essere una qualsiasi funzione che associa a uno stato un insieme di stati successori.
+
+== Constraint Satisfaction Problems
+
+Nei *CSP* invece lo stato ha una struttura precisa:
+- *Variabili*: un insieme $X = {X_1, dots, X_n}$ descrive il problema.
+- *Domini*: ogni variabile $X_i$ può assumere valori nel proprio dominio $D_i$. L'insieme dei domini è $D = {D_1, dots, D_n}$.
+- *Goal test*: è un insieme di *vincoli* (*constraints*) che specificano le combinazioni di valori ammesse per sottoinsiemi di variabili.
+
+*Una soluzione è un assegnamento di un valore a ogni variabile che rispetta tutti i vincoli.*
+
+#colorful-boxes.colorbox(
+  title: "Key point",
+  color: "grey",
+  width: auto,
+)[
+  La struttura esplicita di *variabili, domini e vincoli* permette di usare strategie generali di risoluzione per i CSP, sfruttando queste informazioni per essere più efficienti degli approcci di ricerca standard.
+]
+
+=== CSP Example : Map-Coloring
+#figure(image("assets/image-58.png"))
+siano:
+- Variabili = $W A, N T, Q, N S W, V, S A, T$
+- Dominio = $D_i = {text("red, green, blue")}$
+- Vincoli = le regioni adiacenti devono essere di colore diverso, per esempio: $W A != N T$ (se il linguaggio lo permette), oppure $(W A, N T) in {text("(red, green), (red, blue), (green, blue)"), dots}$
+
+#pagebreak()
+
+#figure(image("assets/image-59.png"))
+Le soluzioni sono assegnazioni che soddisfano tutti i vincoli, ad esempio:
+$ text("{ Wa = red, NT = green, Q = red, NSW = green, V = red, SA = blue, T = green }") $
+
+=== Example: N-Queens
+
+*Obiettivo*: posizionare $N$ regine su una scacchiera $N times N$ in modo che nessuna coppia di regine si attacchi, ovvero che non condividano riga, colonna o diagonale.
+
+*Prima formulazione: una variabile per ogni casella*
+- *Variabili*: $X_(i,j)$ per ogni $i,j in {1, dots, N}$. Abbiamo quindi $N^2$ variabili.
+- *Domini*: $D_(i,j) = {0,1}$, dove $1$ indica che nella casella è presente una regina e $0$ che è vuota.
+- *Vincoli*: per ogni coppia di caselle distinte sulla stessa riga, colonna o diagonale, le combinazioni ammesse sono:
+
+$ (X_(i,j), X_(r,c)) in {(0,0), (0,1), (1,0)} $
+
+La coppia $(1,1)$ è esclusa perché le due regine si attaccherebbero. Il vincolo si applica quando:
+- *Stessa riga*: $i = r$
+- *Stessa colonna*: $j = c$
+- *Stessa diagonale*: $abs(i-r) = abs(j-c)$, considerando entrambe le direzioni.
+
+Questi vincoli impongono *al massimo una regina* per riga, colonna e diagonale. Per avere esattamente $N$ regine sulla scacchiera aggiungiamo:
+
+$ sum_(i=1)^N sum_(j=1)^N X_(i,j) = N $
+
+=== N-Queens: alternative formulation
+
+*Idea*: consideriamo direttamente *una regina per ogni colonna*.
+- *Variabili*: $X = {x_1, dots, x_N}$, dove $x_i$ rappresenta la *riga* della regina nella colonna $i$. Ora abbiamo solo $N$ variabili.
+- *Domini*: $D_i = {1, dots, N}$, ovvero tutte le righe della scacchiera.
+- *Vincoli*: uno per ogni coppia di variabili, per un totale di $N(N-1)/2$ vincoli. Per ogni $i < j$ deve valere:
+
+$ x_i != x_j quad and quad abs(x_i-x_j) != abs(i-j) $
+
+Il primo impedisce che due regine siano sulla *stessa riga*, il secondo sulla *stessa diagonale*.
+
+*Esempio con $N = 4$*: possiamo anche elencare esplicitamente le coppie di valori ammesse:
+
+$ C_1: (x_1,x_2) in {(1,3), (1,4), (2,4), (3,1), (4,1), (4,2)} $
+
+$ C_2: (x_1,x_3) in {(1,2), (1,4), (2,1), (2,3), (2,4), (3,2), (3,4), (4,2), (4,3)} $
+
+Ad esempio, $(x_1,x_2) = (1,3)$ è ammesso perché le due regine sono su righe diverse e la differenza tra le righe è $2$, mentre quella tra le colonne è $1$.
+
+#colorful-boxes.colorbox(
+  title: "Key point",
+  color: "grey",
+  width: auto,
+)[
+  Una buona formulazione rende alcuni vincoli *impliciti*: con una variabile per colonna è già garantito che ci sia esattamente una regina in ogni colonna, quindi non serve controllare questo vincolo né aggiungere quello sul numero totale di regine.
+]
+
+== Constraint graph
+Grafo primale (primal graph): un nodo per ogni variabile, un arco per ogni vincolo che intercorre tra le due variabili
+
+#figure(image("assets/image-60.png", width: 80%))
+=== Example: Crossword
+Data la configurazione di un cruciverba e le possibili parole, assegnare le lettere alle caselle in modo da corrispondere alla configurazione data.
+#figure(image("assets/image-61.png", width: 70%))
+==== Non binary constraints
+#figure(image("assets/image-62.png", width: 70%))
+==== Hypergraphs and Dual Graphs 
+#colorful-boxes.colorbox(
+  title: "Relazione tra hypergraphs e binary graphs",
+  color: "grey",
+  width: auto,
+)[
+  - Possiamo sempre convertire un hypergraph in un binary graph
+  - Ogni variabile ha un dominio esponenzialmente più grande
+]
+#figure(image("assets/image-63.png", width: 65%))
+
+== Una prospettiva più ampia del CSP 
+
+I *problemi combinatori* richiedono di cercare, in un insieme di possibili soluzioni, una soluzione ammissibile oppure quella migliore secondo un criterio. Lo spazio delle possibilità può essere enorme, rendendo una ricerca esaustiva impraticabile.
+
+=== Graphical Models
+
+Possiamo distinguere diversi tipi di problemi combinatori:
+- *Decisione*: esiste un modo di colorare un grafo con $k$ colori rispettando tutti i vincoli? La risposta è *sì/no*.
+- *Ottimizzazione*: colorare un grafo con $k$ colori minimizzando il numero di conflitti.
+- *Ottimizzazione multiobiettivo*: ottimizzare più criteri, ad esempio scegliere un portafoglio di investimenti minimizzando il rischio e massimizzando il rendimento.
+
+I *Graphical Models* offrono una rappresentazione generale di questi problemi:
+- un insieme di *variabili*, *domini* e *funzioni locali* (ad esempio vincoli);
+- una *funzione globale* ottenuta aggregando le funzioni locali;
+- una soluzione è un *assegnamento delle variabili* che ottimizza la funzione globale.
+
+== Mathematical formulation of Constraint Networks
+
+Una *Constraint Network* (CN), ovvero una rete di vincoli, è una tripla:
+
+$ "CN" = (X, D, C) $
+
+- $X = {x_1, dots, x_n}$: insieme delle *variabili*.
+- $D = {D_1, dots, D_n}$: insieme dei *domini*, dove $D_i$ contiene i valori ammessi per $x_i$.
+- $C = {(S_1,R_1), dots, (S_m,R_m)}$: insieme dei *vincoli*.
+
+Ogni vincolo $(S_i,R_i)$ è composto da:
+- *Scope* $S_i subset.eq X$: le variabili coinvolte nel vincolo.
+- *Relazione* $R_i$: l'insieme delle tuple di valori ammesse per le variabili dello scope.
+
+Se $S_i = {x_(i_1), dots, x_(i_k)}$, fissato un ordine delle variabili, allora:
+
+$ R_i subset.eq D_(i_1) times dots times D_(i_k) $
+
+*Esempio*: per due variabili con dominio ${1,2}$ e vincolo $x_1 != x_2$, lo scope è ${x_1,x_2}$ e la relazione è ${(1,2),(2,1)}$.
+
+Una *soluzione* assegna un valore a tutte le variabili rispettando tutti i vincoli. Su una rete possiamo svolgere diversi task:
+- verificare se *esiste una soluzione* (*consistency check*);
+- trovare *una soluzione* oppure *tutte le soluzioni*;
+- *contare* le soluzioni;
+- trovare la *soluzione migliore*, se è specificato un criterio di ottimizzazione.
+
+=== Solutions and partial solutions
+
+Una *soluzione parziale* è un assegnamento di valori a un sottoinsieme delle variabili.
+
+Una soluzione parziale è *consistente* se soddisfa tutti i vincoli il cui scope contiene *solo variabili già assegnate*. Gli altri vincoli non sono ancora completamente verificabili.
+
+#colorful-boxes.colorbox(
+  title: "Ricorda",
+  color: "grey",
+  width: auto,
+)[
+  Un assegnamento parziale *consistente* non è necessariamente estendibile a una soluzione completa: le variabili rimaste potrebbero non avere alcun valore compatibile.
+]
+
+*Esempio: 4-Queens*
+- Variabili $x_1, dots, x_4$: una per colonna, con dominio ${1,2,3,4}$.
+- Sei vincoli: uno per ogni coppia di regine.
+- L'assegnamento ${x_1=1, x_2=4, x_3=2}$ è *parziale e consistente*: le tre regine non si attaccano.
+- Tuttavia, nella quarta colonna le righe $1,2,4$ sono già occupate e la riga $3$ è attaccata in diagonale. Quindi questo assegnamento *non può essere completato*.
+- Un esempio di soluzione completa è ${x_1=2, x_2=4, x_3=1, x_4=3}$.
+
+#pagebreak()
+== Standard search formulation for CSP
+
+Possiamo formulare un CSP come un problema di ricerca standard:
+- *Stati*: gli assegnamenti effettuati fino a quel momento.
+- *Stato iniziale*: l'assegnamento vuoto ${}$.
+- *Successor function*: assegnare a una variabile non ancora assegnata un valore che non sia in conflitto con l'assegnamento corrente.
+- *Goal test*: l'assegnamento è completo. La consistenza è mantenuta durante la generazione dei successori.
+
+Se non esistono assegnamenti legali per proseguire, quel ramo *fallisce*: bisogna tornare indietro e cambiare una scelta precedente.
+
+*Proprietà di questa formulazione:*
+- È la stessa per *tutti i CSP*.
+- Con $n$ variabili, ogni soluzione si trova a *profondità $n$*: una scelta naturale è la *Depth-First Search*.
+- Il *percorso è irrilevante*: conta l'assegnamento finale. È quindi possibile anche una formulazione a stati completi, come nella ricerca locale.
+
+*Il problema della formulazione ingenua*: a ogni passo possiamo scegliere sia quale variabile assegnare sia quale valore darle. Con domini di dimensione $d$, a profondità $ell$ il fattore di ramificazione è, nel caso peggiore:
+
+$ b = (n-ell)d $
+
+Ignorando le potature dovute ai vincoli, il numero di foglie diventa:
+
+$ (n d)((n-1)d) dots (1 d) = n! d^n $
+
+Il fattore $n!$ deriva dai diversi *ordini di assegnamento*: raggiungiamo più volte lo stesso assegnamento finale.
+
+== Backtracking search
+
+*Idea*: gli assegnamenti a variabili diverse sono *commutativi*. Assegnare prima $W A = "red"$ e poi $N T = "green"$ produce lo stesso risultato dell'ordine inverso.
+
+In ogni nodo scegliamo quindi *una sola variabile non assegnata* e generiamo un ramo per ciascun suo valore ammissibile. La scelta della variabile può essere fissa oppure dipendere dall'assegnamento corrente.
+
+- *Fattore di ramificazione*: al massimo $b = d$.
+- *Numero di foglie*: al massimo $d^n$, eliminando il fattore $n!$ dovuto agli ordini ridondanti.
+- *Backtracking search*: è una ricerca in profondità per CSP che assegna una variabile alla volta e annulla le scelte quando un ramo fallisce.
+- È l'algoritmo di base *non informato* per i CSP; nelle slide viene indicato che può risolvere N-Queens per $n approx 25$.
+- L'*ordine di scelta delle variabili* influisce sulle prestazioni, perché può far emergere prima o dopo i conflitti.
+
+#pagebreak()
+
+=== Pseudo codice
+
+```purs
+function Backtracking-Search(csp) returns a solution or failure
+    return Backtrack({}, csp)
+
+function Backtrack(assignment, csp) returns a solution or failure
+    if assignment is complete then return assignment
+    var <- Select-Unassigned-Variable(assignment, csp)
+
+    for each value in Order-Domain-Values(var, assignment, csp) do
+        if value is consistent with assignment then
+            add {var = value} to assignment
+            inferences <- Inferences(csp, var, value)
+
+            if inferences != failure then
+                add inferences to assignment
+                result <- Backtrack(assignment, csp)
+                if result != failure then return result
+
+            undo {var = value} and all effects of inferences
+
+    return failure
+```
+
+*Come funziona:*
+1. Se l'assegnamento è completo, restituiamo la soluzione.
+2. Scegliamo una variabile non assegnata e proviamo i valori del suo dominio in un certo ordine.
+3. Se il valore è compatibile con l'assegnamento corrente, lo assegniamo ed eseguiamo le *inferenze*, per dedurre conseguenze della scelta ed eventualmente rilevare un fallimento.
+4. Se le inferenze non falliscono, proseguiamo ricorsivamente.
+5. Se il tentativo fallisce, *annulliamo l'assegnamento e gli effetti delle inferenze*, comprese eventuali riduzioni dei domini, e proviamo il valore successivo.
+6. Se tutti i valori falliscono, restituiamo *failure* al livello precedente.
+
+#colorful-boxes.colorbox(
+  title: "Key point",
+  color: "grey",
+  width: auto,
+)[
+  Il backtracking costruisce un assegnamento una variabile alla volta. Quando una scelta non permette di arrivare a una soluzione, torna indietro e prova un'alternativa. *Scelta delle variabili, ordine dei valori e inferenza* sono i punti in cui possiamo migliorare la ricerca.
+]
+
+#align(center, grid(
+  columns: (1fr, 1fr),
+  gutter: 8pt,
+  align: center,
+  image("assets/image-64.png", width: 30%),
+  image("assets/image-65.png", width: 50%),
+  image("assets/image-66.png", width: 50%),
+  image("assets/image-67.png", width: 50%),
+))
+
+Nell'esempio ogni livello dell'albero aggiunge il colore di una regione. Dopo aver assegnato $W A = "red"$, per $N T$ possiamo scegliere verde o blu; i rami incompatibili con i colori già assegnati vengono esclusi.
+
+#pagebreak()
+== Improving Backtracking
+
+*Obiettivo*: ridurre la dimensione dello spazio di ricerca esplorato, riconoscendo prima le scelte che non possono portare a una soluzione.
+
+Le principali possibilità sono:
+- *Ordinare variabili e valori*: scegliere quale variabile assegnare e in quale ordine provarne i valori.
+- *Consistenza locale*: applicare tecniche come *arc consistency* e *path consistency* per eliminare combinazioni incompatibili.
+- *Look-ahead*: prevedere come una scelta limita gli assegnamenti futuri e anticipare le inconsistenze.
+- *Look-back*: decidere a quale scelta precedente tornare quando si incontra un fallimento.
+- *Tree decomposition*: sfruttare la struttura del problema per scomporlo in parti più semplici.
+
+=== Ordering Variables: Minimum Remaining Values
+
+*MRV*: scegliamo la variabile non ancora assegnata con il *minor numero di valori legali rimasti*, tenendo conto dell'assegnamento corrente.
+
+- Se una variabile ha un solo valore disponibile, affrontiamo subito quella scelta obbligata.
+- Se non ha più valori disponibili, scopriamo immediatamente che il ramo fallisce.
+- L'idea è assegnare prima le variabili *più difficili*, per evitare di scoprire un conflitto solo dopo molte altre assegnazioni.
+
+#figure(image("assets/csp-mrv.png", width: 85%))
+
+*Esempio*: dopo $W A = "red"$ e $N T = "green"$, $S A$ può essere soltanto blu, perché confina con entrambe. MRV sceglie quindi $S A$ prima delle regioni che hanno ancora più colori disponibili.
+
+=== Ordering Variables: Degree heuristic
+
+In caso di *parità tra variabili secondo MRV*, scegliamo quella coinvolta nel *maggior numero di vincoli con le variabili ancora non assegnate*.
+
+L'idea è affrontare prima una variabile che limita molte altre scelte, così da vincolare prima il resto del problema.
+
+#figure(image("assets/csp-degree.png", width: 85%))
+
+*Esempio*: all'inizio tutte le regioni hanno tre colori disponibili. Scegliamo $S A$, perché confina con cinque regioni ed è quindi quella con più vincoli sulle variabili rimanenti.
+
+*MRV e Degree heuristic sono generali*: possono essere applicate a qualsiasi CSP, sfruttando domini e vincoli.
+
+=== Value ordering: Least Constraining Value
+
+Dopo aver scelto la variabile, dobbiamo decidere *quale valore provare per primo*.
+
+La *Least Constraining Value* (LCV) preferisce il valore che *esclude meno valori dai domini delle variabili non ancora assegnate*, lasciando più possibilità per completare la soluzione.
+
+#figure(image("assets/csp-lcv.png", width: 100%))
+
+*Esempio*: siano $W A = "red"$ e $N T = "green"$. Per $Q$ possiamo scegliere rosso o blu:
+- $Q = "red"$: lascia il blu disponibile per $S A$.
+- $Q = "blue"$: $S A$ confina con regioni che usano tutti e tre i colori, quindi non ha più valori disponibili.
+
+LCV preferisce quindi *rosso* per $Q$.
+
+#colorful-boxes.colorbox(
+  title: "Ricorda",
+  color: "grey",
+  width: auto,
+)[
+  - *MRV*: scegli la variabile con meno valori legali rimasti.
+  - *Degree heuristic*: a parità di MRV, scegli quella con più vincoli sulle variabili rimanenti.
+  - *LCV*: per la variabile scelta, prova prima il valore che lascia più libertà alle altre.
+]
+
+Combinando queste euristiche, nelle slide viene indicato che il problema delle *1000 regine* diventa affrontabile. Il miglioramento effettivo dipende però dal problema specifico.
+
+#pagebreak()
+== Inference: make hidden constraints explicit
+
+Possiamo ragionare sui vincoli esistenti per *dedurne altri*, rendendo esplicite informazioni già implicite nel problema.
+
+*Esempio: colorazione di un grafo con due colori*
+- Variabili: $x_1,x_2,x_3$.
+- Domini: $D_1 = D_2 = D_3 = {R,B}$.
+- Vincoli iniziali: $C_1: x_1 != x_2$ e $C_2: x_2 != x_3$.
+
+Se $x_2 = R$, allora $x_1 = x_3 = B$; se $x_2 = B$, allora $x_1 = x_3 = R$. Possiamo quindi dedurre:
+
+$ C_3: x_1 = x_3 $
+
+Non serve esplorare assegnamenti in cui $x_1 != x_3$, perché non potranno soddisfare entrambi i vincoli iniziali. Questa deduzione dipende dall'avere *solo due colori*.
+
+=== Trade-off between inference and search
+
+- *Vincoli più restrittivi*: riducono lo spazio di ricerca. Aggiungere vincoli dedotti correttamente preserva tutte le soluzioni ed elimina prima i tentativi inutili.
+- *Costo dell'inferenza*: dedurre e mantenere i nuovi vincoli richiede calcolo.
+- *Costo dei controlli*: ogni nuova assegnazione può richiedere la verifica di più vincoli.
+
+Considerando al massimo una relazione aggregata per ciascuno scope:
+- con *vincoli binari*, una nuova variabile può richiedere fino a $O(n)$ controlli con quelle già assegnate;
+- con *vincoli di arità $r$*, gli scope che coinvolgono la nuova variabile possono essere $O(n^(r-1))$.
+
+Questi sono conteggi dei *vincoli da controllare*: il costo di ciascun controllo dipende anche da come è rappresentata la relazione.
+
+=== Backtrack Free Search
+
+Una rete è *backtrack free*, rispetto all'ordine di assegnamento considerato, se ogni assegnamento parziale consistente generato può essere esteso a una soluzione: non ci sono rami consistenti che terminano in un fallimento.
+
+Una DFS può quindi raggiungere un assegnamento completo e consistente *senza dover tornare indietro*.
+
+*Esempio*: nella rete con due colori, consideriamo l'ordine $x_1,x_3,x_2$.
+- Senza $C_3$, la scelta $x_1=R, x_3=B$ sembra consistente, ma non lascia alcun colore per $x_2$.
+- Aggiungendo $C_3: x_1=x_3$, quella scelta viene esclusa subito. Se $x_1=x_3=R$, basta assegnare $x_2=B$, e viceversa.
+
+In questo esempio il vincolo dedotto rende la ricerca backtrack free. *In generale, aggiungere qualche vincolo non basta a garantire questa proprietà.*
+
+== Look-Ahead
+
+Il *look-ahead* anticipa l'effetto di una scelta sulle variabili future, usando inferenze locali come la consistenza d'arco o di cammino.
+
+- Prevede *come assegnare un valore restringe le possibilità successive*.
+- Aggiorna i domini delle variabili ancora non assegnate.
+- Fornisce informazioni utili per scegliere la prossima variabile e il prossimo valore, ad esempio il numero di valori legali rimasti per MRV.
+
+Le due strategie considerate sono:
+- *Forward Checking*: controlla separatamente le variabili future rispetto all'assegnamento appena effettuato.
+- *Arc consistency look-ahead*: propaga la consistenza d'arco, considerando anche le compatibilità tra variabili non ancora assegnate.
+
+=== Costi e benefici
+
+Il look-ahead comporta un *costo aggiuntivo a ogni assegnazione*, perché bisogna propagare i vincoli. Può però ridurre molto lo spazio esplorato:
+- scopre prima che una scelta rende impossibile completare un sottoproblema;
+- elimina valori incompatibili dai domini futuri;
+- evita di scendere in rami destinati a fallire.
+
+In generale non elimina il comportamento esponenziale nel *caso peggiore*: bisogna bilanciare il costo della propagazione con il risparmio nella ricerca.
+
+=== Forward Checking
+
+È una forma limitata di *propagazione dei vincoli*: dopo aver assegnato una variabile, ne propaghiamo l'effetto su ciascuna variabile futura collegata da un vincolo, *separatamente*.
+
+*Come funziona nei CSP binari:*
+1. Assegniamo $x_i = v$.
+2. Per ogni variabile non assegnata $x_j$ vincolata a $x_i$, eliminiamo da $D_j$ i valori incompatibili con $x_i = v$.
+3. Se un dominio diventa *vuoto*, il tentativo fallisce: annulliamo la scelta e le riduzioni dei domini, poi proviamo il prossimo valore di $x_i$.
+4. Se tutti i domini restano non vuoti, continuiamo la ricerca.
+
+*Esempio*: nel map-coloring, assegnare $S A = "blue"$ elimina il blu dai domini di $W A, N T, Q, N S W, V$. Se una di queste regioni aveva soltanto il blu disponibile, il fallimento viene rilevato subito.
+
+#colorful-boxes.colorbox(
+  title: "Limite del Forward Checking",
+  color: "grey",
+  width: auto,
+)[
+  Domini futuri tutti non vuoti *non garantiscono una soluzione*. Il forward checking verifica la compatibilità con la variabile appena assegnata, ma non propaga le incompatibilità tra le variabili ancora non assegnate.
+]
+
+=== Forward Checking: esempio sulla mappa
+
+Manteniamo aggiornati i *valori legali rimasti* per ogni regione. Inizialmente tutti i domini contengono rosso, verde e blu.
+
+#figure(image("assets/csp-forward-checking.png", width: 100%))
+
+1. Assegniamo $W A = "red"$: eliminiamo il rosso dai domini di $N T$ e $S A$.
+2. Assegniamo $Q = "green"$: eliminiamo il verde da $N T, S A, N S W$. Ora $N T$ e $S A$ possono essere soltanto blu, mentre $N S W$ può essere rosso o blu.
+3. Proviamo $V = "blue"$: eliminiamo il blu da $S A$ e $N S W$. Il dominio di $S A$ diventa *vuoto*, quindi il tentativo fallisce subito.
+
+Non bisogna interrompere tutta la ricerca: *annulliamo il tentativo corrente* e proviamo un altro valore. Già dopo il secondo passo, però, $N T$ e $S A$ sono entrambi obbligati al blu pur essendo adiacenti: il forward checking non rileva questo conflitto tra due variabili non ancora assegnate.
+
+=== Forward Checking: Graph Colouring Example
+
+Consideriamo la rete $R_(G C)$ delle slide, con variabili $x_1, dots, x_7$ e domini:
+- $D_1 = {R,B,G}$
+- $D_2 = D_5 = {B,G}$
+- $D_3 = D_4 = D_7 = {R,B}$
+- $D_6 = {R,G,Y}$
+
+I colori sono *rosso* ($R$), *blu* ($B$), *verde* ($G$) e *giallo* ($Y$). Tutti i vincoli impongono colori diversi sulle seguenti coppie:
+
+$ (x_1,x_2), (x_1,x_3), (x_1,x_4), (x_1,x_7), (x_2,x_6), $
+$ (x_3,x_7), (x_4,x_5), (x_4,x_7), (x_5,x_6), (x_5,x_7) $
+
+*Esecuzione del forward checking:*
+1. $x_1=R$: rimuoviamo il rosso da $D_3,D_4,D_7$, che diventano tutti ${B}$.
+2. $x_2=B$: non cambia i domini futuri, perché $D_6$ non contiene il blu.
+3. $x_3=B$: essendo $x_3 != x_7$, eliminiamo il blu da $D_7$, che diventa vuoto. Il ramo fallisce.
+
+Il conflitto era già implicito dopo $x_1=R$, ma il forward checking lo scopre soltanto quando assegniamo $x_3$.
+
+=== Complexity of Forward Checking
+
+Siano $k$ la dimensione massima dei domini ed $e$ il numero di vincoli binari considerati, assumendo costo costante per controllare una coppia di valori.
+
+- Per *un valore fissato* della variabile corrente, controlliamo fino a $k$ valori per ogni variabile futura coinvolta. Sommando i controlli sui vincoli otteniamo un limite di $O(e k)$.
+- Per provare fino a *$k$ valori della variabile corrente*, il limite diventa:
+
+$ O(e k^2) $
+
+È il costo della procedura locale di selezione dei valori con forward checking, *non dell'intera ricerca*, che può ancora esplorare un numero esponenziale di nodi.
+
+#pagebreak()
+== Arc Consistency Look-Ahead
+
+La *consistenza d'arco* (*Arc Consistency*, AC) considera anche i vincoli *tra variabili non ancora assegnate*, propagando ulteriormente le riduzioni dei domini.
+
+Un arco diretto $x_i -> x_j$ è *consistente* se ogni valore di $x_i$ ha almeno un valore compatibile nel dominio di $x_j$, detto *supporto*:
+
+$ forall a in D_i, exists b in D_j: (a,b) in R_(i j) $
+
+Se un valore $a in D_i$ non ha alcun supporto in $D_j$, possiamo *eliminarlo da $D_i$*: non potrà comparire in una soluzione.
+
+*Come funziona il look-ahead con AC:*
+1. Rendiamo la rete consistente per archi.
+2. Proviamo $x_i=a$, restringendo il suo dominio a ${a}$.
+3. Propaghiamo le conseguenze sui domini delle altre variabili, fino a quando non ci sono più riduzioni oppure un dominio diventa vuoto.
+4. Se un dominio si svuota, annulliamo il tentativo; altrimenti continuiamo la ricerca con i domini aggiornati.
+
+#colorful-boxes.colorbox(
+  title: "Forward Checking e Arc Consistency",
+  color: "grey",
+  width: auto,
+)[
+  - *Forward checking*: elimina i valori incompatibili con la nuova assegnazione dalle variabili future direttamente collegate.
+  - *AC look-ahead*: propaga anche le conseguenze delle riduzioni tra le variabili future, cercando valori privi di supporto.
+]
+
+=== The power of AC: Sudoku
+
+Possiamo rappresentare un Sudoku come una rete di vincoli:
+- *Variabili*: le 81 celle, da $"A1"$ a $"I9"$.
+- *Domini*: ${1, dots, 9}$ per le celle vuote; un solo valore per quelle già compilate.
+- *Vincoli*: tutti i valori devono essere diversi (*AllDiff*) in ogni riga, colonna e riquadro $3 times 3$.
+
+Ad esempio:
+- Riga A: $"AllDiff"("A1","A2",dots,"A9")$.
+- Colonna 1: $"AllDiff"("A1","B1",dots,"I1")$.
+- Primo riquadro: $"AllDiff"("A1","A2","A3","B1","B2","B3","C1","C2","C3")$.
+
+#figure(image("assets/csp-sudoku.png", width: 65%))
+
+*Esempio sulla colonna 6*: i numeri già presenti sono $5,6,2,8,9,3$, quindi alle tre celle vuote $"A6","E6","I6"$ restano inizialmente i candidati ${1,4,7}$. I vincoli sulle rispettive righe e riquadri restringono ulteriormente questi domini e le riduzioni possono propagarsi ad altre celle.
+
+Le slide indicano che *questo specifico Sudoku* si risolve con la sola propagazione, senza ricerca. Non è una garanzia per qualsiasi Sudoku. Inoltre, propagare un vincolo globale *AllDiff* può essere più forte che applicare AC alle sole disuguaglianze binarie tra celle.
+
+=== Arc Consistency Look-Ahead Complexity
+
+*AC-1, AC-3 e AC-4* sono algoritmi sistematici per rendere una rete consistente per archi.
+
+Con $e$ vincoli binari e domini di dimensione massima $k$:
+- una chiamata ad *AC-4* ha complessità temporale $O(e k^2)$;
+- nel look-ahead, se eseguiamo AC-4 separatamente per ciascuno dei $k$ possibili valori della variabile corrente, otteniamo:
+
+$ O(e k^3) $
+
+Anche questo è un costo di *propagazione locale*: non comprende tutti i nodi che il backtracking potrebbe visitare.
+
+=== Example of AC Look-Ahead
+
+Riprendiamo l'esempio della mappa, dopo $W A = "red"$ e $Q = "green"$. Il forward checking lascia:
+- $D_(N T) = D_(S A) = {"blue"}$
+- $D_(N S W) = {"red", "blue"}$
+- $D_V = {"red", "green", "blue"}$
+
+#figure(image("assets/csp-ac-look-ahead.png", width: 100%))
+
+AC usa anche i vincoli tra queste variabili: per esempio, poiché $S A$ può essere soltanto blu, elimina il blu da $N S W$; quindi $N S W$ resta rosso e può a sua volta restringere $V$.
+
+Soprattutto, $N T$ e $S A$ sono adiacenti e hanno entrambi il solo blu: il loro vincolo di disuguaglianza non ha supporti. *La propagazione svuota un dominio e rileva subito il fallimento*, senza dover prima assegnare $V$.
+
+#pagebreak()
+== Enforcing Arc Consistency for Networks
+
+Un *vincolo binario* tra $x_i$ e $x_j$ è consistente per archi se lo è in *entrambe le direzioni*: ogni valore di $D_i$ ha un supporto in $D_j$ e viceversa.
+
+Una *rete* è consistente per archi se tutti i suoi vincoli binari lo sono.
+
+La procedura *Revise* controlla un singolo arco $x_i -> x_j$ ed elimina da $D_i$ i valori che non hanno supporto in $D_j$.
+
+*Perché non basta controllare ogni arco una sola volta?* Se riduciamo $D_i$, una variabile vicina potrebbe perdere alcuni supporti che prima esistevano. Dobbiamo quindi ricontrollare gli archi interessati, ripetendo la propagazione fino a un *punto fisso*, cioè finché nessun dominio cambia più.
+
+=== Insights on Arc Consistency
+
+- *Un dominio vuoto* dimostra che il problema corrente è inconsistente.
+- *AC e domini tutti non vuoti* non garantiscono, in generale, che esista una soluzione.
+
+*Controesempio*: tre variabili con dominio ${R,B}$, collegate a triangolo da vincoli di disuguaglianza. Ogni colore ha un supporto su ciascun singolo arco, quindi la rete è AC; tuttavia, un triangolo non può essere colorato con due colori.
+
+AC controlla la compatibilità locale dei singoli vincoli binari: i supporti trovati su archi diversi potrebbero non essere utilizzabili *tutti insieme*.
+
+#colorful-boxes.colorbox(
+  title: "Caso speciale: grafi senza cicli",
+  color: "grey",
+  width: auto,
+)[
+  Se i vincoli sono *binari*, il grafo primale è *aciclico* e la rete è AC con domini non vuoti, allora esiste una soluzione. Scegliendo una radice e assegnando ogni genitore prima dei figli, possiamo costruirla *senza backtracking*.
+]
+
+L'ordine conta: in un albero, una volta scelto un valore del genitore, AC garantisce un valore compatibile per ciascun figlio; i sottoalberi non hanno vincoli che li colleghino tra loro.
+
+== Exploiting problem structure: Cycle Cutset
+
+Un *cycle cutset* di un grafo non orientato è un insieme di nodi la cui rimozione rende il grafo *aciclico*, cioè un albero o una foresta.
+
+*Conditioning*: dopo aver assegnato una variabile, possiamo rimuoverla dal grafo residuo, mantenendo nei domini dei vicini le restrizioni imposte dal valore scelto.
+
+*Cutset conditioning:*
+1. Scegliamo un cycle cutset.
+2. Proviamo un assegnamento dei suoi valori, verificando i vincoli interni al cutset.
+3. Propaghiamo le restrizioni sui domini delle variabili rimanenti.
+4. Il grafo residuo è aciclico: applichiamo AC e, se tutti i domini restano non vuoti, costruiamo una soluzione nell'ordine genitore-figli.
+5. Se il tentativo fallisce, ripristiniamo i domini e proviamo un altro assegnamento del cutset.
+
+Con $c$ variabili nel cutset e domini di dimensione massima $k$, ci sono fino a $k^c$ assegnamenti da provare. La parte esponenziale dipende quindi dalla *dimensione del cutset*, mentre ciascun problema residuo su una foresta binaria si risolve in tempo polinomiale.
+
+=== Example: Australia map colouring
+
+#figure(image("assets/csp-cycle-cutset.png", width: 100%))
+
+Per la mappa australiana basta il cutset ${S A}$. Rimuovendo $S A$ rimangono la catena $W A - N T - Q - N S W - V$ e la variabile isolata $T$.
+
+Proviamo un colore per $S A$, lo eliminiamo dai domini delle regioni confinanti e risolviamo la foresta residua. Se serve, ripetiamo con gli altri colori di $S A$.
+
+#pagebreak()
+== Esercizi finali
+
+=== AC Look-Ahead sul Graph Colouring Example
+
+Usiamo la rete $R_(G C)$ già descritta e mostriamo perché AC rileva il fallimento *subito dopo $x_1=R$*:
+1. I vincoli con $x_1$ riducono $D_3,D_4,D_7$ a ${B}$.
+2. Consideriamo $x_3 != x_7$: il solo valore $B$ di $x_3$ non ha alcun supporto in $D_7={B}$.
+3. Revise elimina $B$ da $D_3$, che diventa *vuoto*. Il tentativo fallisce immediatamente.
+
+Il forward checking, invece, attendeva l'assegnamento di $x_3$ per scoprire lo stesso conflitto.
+
+=== Cycle Cutset sul Graph Colouring Example
+
+Scegliamo il cutset ${x_1,x_7}$. Rimuovendo queste variabili, il grafo residuo contiene la catena $x_2 - x_6 - x_5 - x_4$ e il nodo isolato $x_3$: è quindi una foresta.
+
+*Assegnamenti del cutset:*
+- Se $x_1=R$, i vincoli obbligano $x_3=x_7=B$, in conflitto con $x_3 != x_7$.
+- Se $x_1=B$, obbligano $x_3=x_7=R$, ancora in conflitto.
+- Rimane quindi *$x_1=G$*, con $x_7=R$ oppure $x_7=B$.
+
+Propagando i vincoli nel grafo residuo otteniamo:
+- $x_2=B$, perché $D_2={B,G}$ e $x_2 != x_1$.
+- $x_3$ e $x_4$ devono avere il colore opposto a $x_7$, dato che i loro domini sono ${R,B}$.
+- $x_5=G$: è diverso sia da $x_4$ sia da $x_7$, che insieme usano rosso e blu.
+- $x_6 in {R,Y}$: deve essere diverso da $x_5=G$; il vincolo con $x_2=B$ non elimina altri valori dal suo dominio.
+
+Le *quattro soluzioni*, nell'ordine $(x_1,x_2,x_3,x_4,x_5,x_6,x_7)$, sono:
+
+$ (G,B,R,R,G,R,B), quad (G,B,R,R,G,Y,B) $
+$ (G,B,B,B,G,R,R), quad (G,B,B,B,G,Y,R) $
+
+#colorful-boxes.colorbox(
+  title: "Key point",
+  color: "grey",
+  width: auto,
+)[
+  La propagazione sfrutta i *vincoli* per eliminare scelte impossibili; il cutset conditioning sfrutta la *struttura del grafo* per concentrare la ricerca sulle variabili che interrompono i cicli.
+]
