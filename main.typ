@@ -1649,3 +1649,1037 @@ $ (G,B,B,B,G,R,R), quad (G,B,B,B,G,Y,R) $
 )[
   La propagazione sfrutta i *vincoli* per eliminare scelte impossibili; il cutset conditioning sfrutta la *struttura del grafo* per concentrare la ricerca sulle variabili che interrompono i cicli.
 ]
+
+#pagebreak()
+
+= Logical Agents
+
+== Knowledge-based agents
+
+Un *agente basato sulla conoscenza* rappresenta quello che sa del mondo e usa il ragionamento per ricavare nuove informazioni e scegliere come agire. La sua *Knowledge Base* (KB) è un insieme di frasi espresse in un linguaggio formale.
+
+L'approccio è *dichiarativo*: specifichiamo fatti e regole, poi lasciamo che l'agente deduca le conseguenze. Le due operazioni fondamentali sono:
+- *Tell*: aggiunge informazioni alla KB, ad esempio una nuova percezione.
+- *Ask*: interroga la KB. La risposta deve seguire logicamente dalle informazioni presenti.
+
+Possiamo descrivere l'agente a due livelli:
+- *Knowledge level*: che cosa sa e quali conclusioni può trarne, indipendentemente dall'implementazione.
+- *Implementation level*: come sono memorizzate le frasi e quali algoritmi le manipolano.
+
+=== A simple knowledge-based agent
+
+```purs
+function KB-Agent(percept) returns an action
+    persistent: KB, a knowledge base
+                t, initially 0
+
+    Tell(KB, Make-Percept-Sentence(percept, t))
+    action <- Ask(KB, Make-Action-Query(t))
+    Tell(KB, Make-Action-Sentence(action, t))
+    t <- t + 1
+    return action
+```
+
+A ogni passo l'agente registra *che cosa ha percepito*, deduce un'azione e registra *che cosa ha fatto*. Il tempo serve a distinguere informazioni relative a momenti diversi: essere in una casella ora non significa esserci anche dopo uno spostamento.
+
+La KB deve permettere di rappresentare stati e azioni, incorporare nuove percezioni, aggiornare la descrizione del mondo e dedurre sia *proprietà non direttamente osservate* sia *azioni appropriate*.
+
+== Wumpus World
+
+Il *Wumpus World* è una griglia di stanze con un mostro, il Wumpus, alcuni pozzi e dell'oro. L'agente conosce le regole dell'ambiente, ma inizialmente non sa dove si trovino i pericoli: deve ricostruirli attraverso percezioni locali.
+
+=== Descrizione PEAS
+
+- *Performance measure*: $+1000$ per l'oro, $-1000$ in caso di morte, $-1$ per ogni passo e $-10$ per l'uso della freccia.
+- *Environment*: le caselle adiacenti al Wumpus hanno cattivo odore (*stench*), quelle adiacenti a un pozzo hanno una brezza (*breeze*). Lo scintillio (*glitter*) è presente se e solo se l'oro si trova nella casella corrente. L'adiacenza è orizzontale o verticale.
+- *Actuators*: girare a sinistra o a destra, avanzare, raccogliere (*Grab*), lasciare l'oro (*Release*) e sparare (*Shoot*). L'agente dispone di una sola freccia: sparare nella direzione del Wumpus, se si trova lungo la linea di tiro, lo uccide.
+- *Sensors*: brezza, scintillio e odore. Queste percezioni descrivono la situazione locale, non l'intera mappa.
+
+#block(breakable: false)[
+=== Caratteristiche dell'ambiente
+
+- *Parzialmente osservabile*: l'agente riceve soltanto percezioni locali.
+- *Deterministico*: gli effetti delle azioni sono definiti esattamente; l'incertezza riguarda ciò che l'agente conosce.
+- *Sequenziale*: una scelta modifica le possibilità e i rischi dei passi successivi.
+- *Statico*: pozzi e Wumpus non si spostano mentre l'agente ragiona.
+- *Discreto*: caselle, orientamenti e azioni sono discreti.
+- *A singolo agente*: il Wumpus è trattato come una caratteristica dell'ambiente, senza una propria strategia.
+]
+
+=== Esplorazione e deduzioni
+
+Nelle figure $A$ indica l'agente, $B$ la brezza, $S$ l'odore, $G$ lo scintillio, $P$ un pozzo e $W$ il Wumpus. *OK* indica una casella riconosciuta come sicura; il punto interrogativo segnala una possibilità ancora da verificare. Le coordinate sono $(x,y)$, con origine in basso a sinistra.
+
+#figure(
+  grid(
+    columns: (1fr, 1fr),
+    gutter: 10pt,
+    align: center,
+    [#image("assets/logical-wumpus-15.png", width: 82%)\ *1. Brezza in $(1,2)$*],
+    [#image("assets/logical-wumpus-17.png", width: 82%)\ *2. Pericoli localizzati*],
+    [#image("assets/logical-wumpus-19.png", width: 82%)\ *3. Nuove caselle sicure*],
+    [#image("assets/logical-wumpus-20.png", width: 82%)\ *4. Oro in $(3,2)$*],
+  ),
+)
+
+1. In $(1,1)$ non percepiamo né brezza né odore: $(1,2)$ e $(2,1)$ sono sicure. L'*assenza di un segnale* è già un'informazione utile.
+2. In $(1,2)$ percepiamo brezza: essendo $(1,1)$ sicura, deve esserci un pozzo in $(1,3)$ oppure in $(2,2)$. Non possiamo ancora scegliere quale delle due.
+3. Torniamo indietro e visitiamo $(2,1)$: percepiamo odore ma non brezza. L'assenza di brezza esclude pozzi in $(2,2)$ e $(3,1)$, quindi il pozzo precedente è in $(1,3)$.
+4. Il Wumpus deve essere vicino a $(2,1)$. Non è in $(1,1)$ e non può essere in $(2,2)$, perché in $(1,2)$ non c'era odore. Rimane $(3,1)$. La casella $(2,2)$ è quindi sicura sia rispetto ai pozzi sia rispetto al Wumpus.
+5. In $(2,2)$ l'assenza di brezza permette di escludere pozzi in $(2,3)$ e $(3,2)$; il Wumpus è già localizzato altrove. Possiamo proseguire in sicurezza.
+6. In $(3,2)$ troviamo brezza, odore e scintillio: l'oro è qui. Odore e brezza segnalano pericoli *nelle caselle adiacenti*, quindi non impediscono di raccoglierlo nella casella corrente.
+
+L'agente non osserva direttamente tutti questi fatti: li deduce *combinando regole generali e percezioni raccolte in luoghi diversi*.
+
+=== Situazioni senza mosse sicuramente sicure
+
+Se rileviamo brezza sia in $(1,2)$ sia in $(2,1)$, potremmo non avere nuove caselle dimostrabilmente sicure. La logica descrive le possibilità compatibili con le osservazioni, ma non assegna da sola una probabilità a ciascuna.
+
+Assumendo la distribuzione uniforme dei pozzi usata nell'esempio delle slide e condizionando sulle osservazioni, il rischio di pozzo in $(2,2)$ è circa $0.86$, contro circa $0.31$ per altre caselle candidate. Sono valori che dipendono dal modello probabilistico e dalle osservazioni: per confrontare questi rischi occorre un ragionamento probabilistico, ripreso nelle lezioni successive.
+
+Un'altra possibilità è *modificare il mondo per renderlo sicuro*. Se sentiamo odore in $(1,1)$, sparare verso una delle caselle adiacenti può rendere sicura quella direzione rispetto al Wumpus: se il mostro era sulla linea di tiro viene ucciso; se non c'era, quella casella era già libera dal mostro. L'azione ha però il costo della freccia e non elimina eventuali pozzi.
+
+== Logic in general
+
+Una *logica* è un linguaggio formale per rappresentare informazioni e ricavarne conclusioni. Distinguiamo:
+- *Sintassi*: stabilisce quali espressioni sono frasi ben formate.
+- *Semantica*: stabilisce quando una frase è vera in una determinata interpretazione del mondo.
+
+*Esempio*: $x+2 >= y$ è una frase aritmetica ben formata, mentre un'espressione come “$x^2+y$ >” è incompleta. La prima è vera se $x=7,y=1$, falsa se $x=0,y=6$: la sintassi è la stessa, ma la verità dipende dall'interpretazione.
+
+=== Models and entailment
+
+Un *modello* $m$ è un mondo formalmente descritto nel quale possiamo valutare una frase. Se $alpha$ è vera in $m$, diciamo che $m$ è un modello di $alpha$. Indichiamo con $M(alpha)$ l'insieme di tutti i suoi modelli.
+
+La KB *implica logicamente* una frase $alpha$, scritto:
+
+$ "KB" ⊨ alpha $
+
+se $alpha$ è vera in *tutti* i modelli in cui la KB è vera. Equivalentemente:
+
+$ "KB" ⊨ alpha quad ⇔ quad M("KB") subset.eq M(alpha) $
+
+*Esempio*: sapere che “la Juventus ha vinto” e “la Roma ha vinto” implica sia “la Juventus ha vinto” sia “la Juventus o la Roma ha vinto”. Anche $x+y=4$ implica $4=x+y$.
+
+L'entailment è una relazione tra frasi fondata sulla loro *semantica*. Gli algoritmi, invece, manipolano simboli e strutture sintattiche: serve una procedura che colleghi questi due livelli.
+
+=== Model checking nel Wumpus World
+
+Consideriamo solo i pozzi. Dopo aver osservato assenza di brezza in $(1,1)$ e brezza in $(2,1)$, esaminiamo le tre caselle $(1,2),(2,2),(3,1)$. Ogni casella può contenere o meno un pozzo: ci sono $2^3=8$ configurazioni.
+
+L'assenza di brezza in $(1,1)$ esclude un pozzo in $(1,2)$; la brezza in $(2,1)$ impone almeno un pozzo tra $(2,2)$ e $(3,1)$. Restano *tre modelli della KB*: pozzo solo in $(2,2)$, solo in $(3,1)$ oppure in entrambe.
+
+#figure(
+  grid(
+    columns: (1fr, 1fr),
+    gutter: 10pt,
+    align: center,
+    [#image("assets/logical-models-28.png", width: 100%)\ *$alpha_1$: $(1,2)$ è libera da pozzi*],
+    [#image("assets/logical-models-29.png", width: 100%)\ *$alpha_2$: $(2,2)$ è libera da pozzi*],
+  ),
+)
+
+- $"KB" ⊨ alpha_1$: $(1,2)$ è libera da pozzi in tutti i modelli rimasti.
+- $"KB" ⊭ alpha_2$: in alcuni modelli $(2,2)$ è libera, in altri contiene un pozzo.
+
+Non poter dimostrare $alpha_2$ *non significa aver dimostrato la sua negazione*: in questo caso non sappiamo ancora quale delle due sia vera.
+
+=== Inference: correttezza e completezza
+
+Scriviamo $"KB" ⊢_i alpha$ quando la procedura di inferenza $i$ *deriva* $alpha$ dalla KB.
+
+- *Soundness* (correttezza): se $"KB" ⊢_i alpha$, allora $"KB" ⊨ alpha$. La procedura produce soltanto conseguenze logiche.
+- *Completeness* (completezza): se $"KB" ⊨ alpha$, allora $"KB" ⊢_i alpha$. La procedura riesce a derivare ogni conseguenza logica.
+
+L'*entailment* descrive ciò che segue necessariamente dalle informazioni; l'*inferenza* è il procedimento usato per trovarlo. Una procedura può essere corretta senza essere completa: tutte le sue risposte sono giuste, ma potrebbe non trovare alcune conclusioni deducibili.
+
+Esistono procedure corrette e complete anche per la logica del primo ordine, più espressiva di quella proposizionale. Questo non garantisce che terminino su ogni domanda: la completezza assicura di trovare una dimostrazione quando la conclusione segue dalla KB.
+
+== Propositional logic
+
+La *logica proposizionale* rappresenta fatti attraverso simboli che possono essere veri o falsi. Un simbolo come $P_(1,2)$ viene interpretato come una proposizione intera, ad esempio “c'è un pozzo in $(1,2)$”: la logica proposizionale non ne analizza la struttura interna.
+
+=== Sintassi e connettivi
+
+Ogni simbolo proposizionale è una frase. A partire da frasi $P$ e $Q$ possiamo costruirne altre:
+- $¬P$: *negazione*, “non $P$”.
+- $P ∧ Q$: *congiunzione*, “$P$ e $Q$”.
+- $P ∨ Q$: *disgiunzione inclusiva*, “$P$ oppure $Q$, o entrambe”.
+- $P ⇒ Q$: *implicazione*, “se $P$, allora $Q$”.
+- $P ⇔ Q$: *bicondizionale*, “$P$ se e solo se $Q$”.
+
+Le parentesi specificano come combinare i connettivi. Applicando queste regole ricorsivamente possiamo costruire formule di qualsiasi dimensione.
+
+=== Semantica e tavole di verità
+
+Un modello assegna vero o falso a *ciascun simbolo*. Con $n$ simboli ci sono $2^n$ modelli possibili. La verità delle formule composte si calcola ricorsivamente a partire da quella dei simboli.
+
+Nella tabella *V* indica vero e *F* falso:
+
+#align(center, table(
+  columns: 7,
+  align: center,
+  inset: 6pt,
+  table.header([$P$], [$Q$], [$¬P$], [$P ∧ Q$], [$P ∨ Q$], [$P ⇒ Q$], [$P ⇔ Q$]),
+  [F], [F], [V], [F], [F], [V], [V],
+  [F], [V], [V], [F], [V], [V], [F],
+  [V], [F], [F], [F], [V], [F], [F],
+  [V], [V], [F], [V], [V], [V], [V],
+))
+
+L'implicazione $P ⇒ Q$ è falsa *solo quando $P$ è vera e $Q$ falsa*. Se $P$ è falsa, l'implicazione è vera indipendentemente da $Q$: non afferma che $P$ si verifichi e non esprime da sola un rapporto causale.
+
+Il bicondizionale richiede che $P$ e $Q$ abbiano *lo stesso valore di verità*, cioè che valgano entrambe le implicazioni.
+
+*Esempio*: con $P_(1,2)=F$, $P_(2,2)=F$ e $P_(3,1)=V$:
+
+$ ¬P_(1,2) ∧ (P_(2,2) ∨ P_(3,1)) = V ∧ (F ∨ V) = V $
+
+=== Rappresentare il Wumpus World
+
+Siano $P_(i,j)$ “c'è un pozzo in $(i,j)$” e $B_(i,j)$ “c'è brezza in $(i,j)$”. Per la situazione con nessuna brezza nella casella iniziale e brezza in $(2,1)$, la KB contiene:
+
+$ R_1: ¬P_(1,1), quad R_2: ¬B_(1,1), quad R_3: B_(2,1) $
+$ R_4: B_(1,1) ⇔ (P_(1,2) ∨ P_(2,1)) $
+$ R_5: B_(2,1) ⇔ (P_(1,1) ∨ P_(2,2) ∨ P_(3,1)) $
+
+I primi tre sono *fatti*, gli altri traducono le regole dell'ambiente. Il bicondizionale esprime entrambe le direzioni: un pozzo adiacente produce brezza e una brezza richiede almeno un pozzo adiacente.
+
+Da $R_2$ e $R_4$ ricaviamo $¬P_(1,2) ∧ ¬P_(2,1)$. Da $R_1,R_3,R_5$ ricaviamo $P_(2,2) ∨ P_(3,1)$: sappiamo che almeno uno dei due pozzi esiste, ma non ancora quale.
+
+=== Inference by enumeration
+
+Per verificare $"KB" ⊨ alpha$ possiamo enumerare tutte le assegnazioni di verità ai simboli presenti nella KB e nella domanda:
+1. Se in un modello la KB è falsa, quel modello non impone condizioni sulla risposta.
+2. Se la KB è vera, anche $alpha$ deve essere vera.
+3. Basta *un modello con KB vera e $alpha$ falsa* per smentire l'entailment.
+
+```purs
+function TT-Entails(KB, alpha) returns true or false
+    symbols <- all proposition symbols in KB and alpha
+    return TT-Check-All(KB, alpha, symbols, {})
+
+function TT-Check-All(KB, alpha, symbols, model)
+    if symbols is empty then
+        if PL-True(KB, model) then
+            return PL-True(alpha, model)
+        else return true
+
+    P <- First(symbols)
+    rest <- Rest(symbols)
+    return TT-Check-All(KB, alpha, rest, model + {P = true})
+       and TT-Check-All(KB, alpha, rest, model + {P = false})
+```
+
+L'algoritmo esplora i modelli in profondità ed è *corretto e completo*. Il ramo con KB falsa restituisce vero perché non costituisce un controesempio.
+
+Nella KB del Wumpus appena descritta compaiono sette simboli: la tabella completa ha $2^7=128$ righe, ma soltanto tre rendono vera tutta la KB. Per dimostrare $¬P_(1,2)$ basta verificare che sia vera in queste tre righe.
+
+Il numero di modelli cresce come $O(2^n)$; considerando anche il costo di valutazione delle formule, il tempo è $O(2^n L)$, con $L$ dimensione complessiva delle formule. Il problema generale dell'entailment proposizionale è *co-NP-completo*.
+
+=== Logical equivalence
+
+Due formule sono *logicamente equivalenti* se sono vere esattamente negli stessi modelli:
+
+$ alpha ≡ beta quad ⇔ quad M(alpha)=M(beta) $
+
+Equivalentemente, $alpha ⊨ beta$ e $beta ⊨ alpha$. L'equivalenza permette di riscrivere una formula senza cambiarne il significato.
+
+*Commutatività e associatività:*
+
+$ alpha ∧ beta ≡ beta ∧ alpha, quad alpha ∨ beta ≡ beta ∨ alpha $
+$ (alpha ∧ beta) ∧ gamma ≡ alpha ∧ (beta ∧ gamma) $
+$ (alpha ∨ beta) ∨ gamma ≡ alpha ∨ (beta ∨ gamma) $
+
+*Doppia negazione, contrapposizione ed eliminazione delle implicazioni:*
+
+$ ¬(¬alpha) ≡ alpha $
+$ (alpha ⇒ beta) ≡ (¬beta ⇒ ¬alpha) ≡ (¬alpha ∨ beta) $
+$ (alpha ⇔ beta) ≡ ((alpha ⇒ beta) ∧ (beta ⇒ alpha)) $
+
+La contrapposizione non va confusa con l'inversione: da $alpha ⇒ beta$ non segue, in generale, $beta ⇒ alpha$.
+
+*Leggi di De Morgan:*
+
+$ ¬(alpha ∧ beta) ≡ (¬alpha ∨ ¬beta) $
+$ ¬(alpha ∨ beta) ≡ (¬alpha ∧ ¬beta) $
+
+*Distributività:*
+
+$ alpha ∧ (beta ∨ gamma) ≡ (alpha ∧ beta) ∨ (alpha ∧ gamma) $
+$ alpha ∨ (beta ∧ gamma) ≡ (alpha ∨ beta) ∧ (alpha ∨ gamma) $
+
+=== Validity and satisfiability
+
+- Una formula è *valida* (una tautologia) se è vera in tutti i modelli. Esempi: $A ∨ ¬A$, $A ⇒ A$ e $(A ∧ (A ⇒ B)) ⇒ B$.
+- È *soddisfacibile* se è vera in almeno un modello. Esempi: $A ∨ B$ e il singolo simbolo $C$.
+- È *insoddisfacibile* se non è vera in alcun modello. Esempio: $A ∧ ¬A$.
+
+Ogni formula valida è soddisfacibile; una formula soddisfacibile può però essere falsa in altri modelli.
+
+Queste proprietà collegano l'inferenza a due problemi equivalenti:
+
+$ "KB" ⊨ alpha quad ⇔ quad ("KB" ⇒ alpha) text(" è valida") $
+$ "KB" ⊨ alpha quad ⇔ quad ("KB" ∧ ¬alpha) text(" è insoddisfacibile") $
+
+La seconda relazione consente una *dimostrazione per assurdo*: aggiungiamo la negazione della conclusione e mostriamo che non esiste alcun modello compatibile con tutte le frasi.
+
+#colorful-boxes.colorbox(
+  title: "Ricorda",
+  color: "grey",
+  width: auto,
+)[
+  *Equivalenza* significa avere gli stessi modelli; *entailment* significa che tutti i modelli delle premesse soddisfano la conclusione. Per dimostrare $"KB" ⊨ alpha$ possiamo cercare un controesempio a $alpha$: se $"KB" ∧ ¬alpha$ è insoddisfacibile, la conclusione segue.
+]
+
+== Sistemi di inferenza e metodi di dimostrazione
+
+I metodi di dimostrazione seguono due approcci principali:
+- *Model checking*: lavora sulle interpretazioni. Comprende l'enumerazione delle tavole di verità, il backtracking migliorato come *DPLL* e la ricerca euristica nello spazio dei modelli, simile al min-conflicts. Una ricerca euristica può trovare un modello valido, ma il suo fallimento non dimostra in generale che il modello non esista.
+- *Applicazione di regole di inferenza*: genera nuove frasi da quelle già note. Una prova è una sequenza di applicazioni corrette; le regole possono essere viste come operatori di un problema di ricerca. Spesso occorre prima riscrivere le formule in una *forma normale*.
+
+=== Regole, derivazioni e prove
+
+Un *sistema di inferenza* è un insieme di regole $R$. Una regola ha alcune premesse e una conclusione:
+
+$ frac(A_1 quad dots quad A_k, A) $
+
+Scriviamo $Gamma ⊢_R A$ se esiste una sequenza finita $A_1,dots,A_n$ che termina con $A$ e in cui ogni formula:
+- appartiene alle ipotesi $Gamma$, oppure
+- si ottiene da formule precedenti mediante una regola di $R$.
+
+Questa sequenza è una *prova* di $A$ a partire da $Gamma$. Una regola corretta deve preservare la verità: $A_1,dots,A_k ⊨ A$.
+
+Oltre a correttezza e completezza, ci interessa la *completezza per refutazione*: se $Gamma ∪ {¬A}$ è insoddisfacibile, il sistema riesce a derivare una contraddizione, indicata con $⊥$.
+
+Il problema deduttivo può quindi essere affrontato:
+- per *refutazione*, ad esempio con la risoluzione su formule in CNF;
+- con *forward* o *backward chaining*, corretti e completi per le domande atomiche sulla forma ristretta di Horn considerata nelle slide, con algoritmi efficienti.
+
+== Resolution
+
+Un *letterale* è un simbolo proposizionale oppure la sua negazione. Una *clausola* è una disgiunzione di letterali; una formula in *Conjunctive Normal Form* (CNF) è una congiunzione di clausole. Ad esempio:
+
+$ (A ∨ ¬B) ∧ (B ∨ ¬C ∨ ¬D) $
+
+Qualsiasi formula proposizionale può essere convertita in una CNF equivalente, anche se la conversione per distribuzione può aumentare molto la dimensione della formula.
+
+=== Regola di risoluzione
+
+Da due clausole contenenti una coppia di letterali *complementari*, $P$ e $¬P$, possiamo ottenere una nuova clausola, detta *risolvente*:
+
+$ frac(C ∨ P quad D ∨ ¬P, C ∨ D) $
+
+Qui $C$ e $D$ rappresentano gli altri letterali delle due clausole. Eliminiamo *una coppia complementare per applicazione* e uniamo i rimanenti letterali, rimuovendo eventuali duplicati.
+
+La regola è corretta: se $P$ è falso, la prima premessa impone $C$; se $P$ è vero, la seconda impone $D$. In entrambi i casi segue $C ∨ D$.
+
+*Esempio nel Wumpus World:*
+
+$ frac(P_(1,3) ∨ P_(2,2) quad ¬P_(2,2), P_(1,3)) $
+
+Se il pozzo è in $(1,3)$ oppure in $(2,2)$ ed escludiamo la seconda possibilità, deve trovarsi in $(1,3)$.
+
+Risolvendo due clausole unitarie $P$ e $¬P$ otteniamo la *clausola vuota*, indicata con $□$ o $⊥$: nessun modello può soddisfarla. La risoluzione è *completa per refutazione* nella logica proposizionale: da un insieme insoddisfacibile di clausole può derivare la clausola vuota.
+
+=== Conversion to CNF
+
+Partiamo dalla regola:
+
+$ B_(1,1) ⇔ (P_(1,2) ∨ P_(2,1)) $
+
+*1. Eliminiamo il bicondizionale*, sostituendolo con le due implicazioni:
+
+$ (B_(1,1) ⇒ (P_(1,2) ∨ P_(2,1))) ∧ ((P_(1,2) ∨ P_(2,1)) ⇒ B_(1,1)) $
+
+*2. Eliminiamo le implicazioni*, usando $alpha ⇒ beta ≡ ¬alpha ∨ beta$:
+
+$ (¬B_(1,1) ∨ P_(1,2) ∨ P_(2,1)) ∧ (¬(P_(1,2) ∨ P_(2,1)) ∨ B_(1,1)) $
+
+*3. Portiamo le negazioni sui simboli*, con De Morgan e la doppia negazione:
+
+$ (¬B_(1,1) ∨ P_(1,2) ∨ P_(2,1)) ∧ ((¬P_(1,2) ∧ ¬P_(2,1)) ∨ B_(1,1)) $
+
+*4. Distribuiamo $∨$ su $∧$*. Otteniamo tre clausole, tutte da soddisfare:
+
+$ C_1 = ¬B_(1,1) ∨ P_(1,2) ∨ P_(2,1) $
+$ C_2 = ¬P_(1,2) ∨ B_(1,1) $
+$ C_3 = ¬P_(2,1) ∨ B_(1,1) $
+
+La CNF finale è $C_1 ∧ C_2 ∧ C_3$; non contiene più implicazioni né negazioni di formule composte.
+
+=== Resolution algorithm
+
+Per dimostrare $"KB" ⊨ alpha$, convertiamo *$"KB" ∧ ¬alpha$* in clausole e cerchiamo una contraddizione.
+
+```purs
+function PL-Resolution(KB, alpha) returns true or false
+    clauses <- clauses of CNF(KB and not alpha)
+    if clauses contains the empty clause then return true
+
+    loop do
+        new <- {}
+        for each pair Ci, Cj in clauses do
+            resolvents <- PL-Resolve(Ci, Cj)
+            if resolvents contains the empty clause then
+                return true
+            new <- new union resolvents
+
+        if new is a subset of clauses then return false
+        clauses <- clauses union new
+```
+
+- Se compare la clausola vuota, l'ipotesi $¬alpha$ è incompatibile con la KB: *$alpha$ segue dalla KB*.
+- Se non otteniamo più clausole nuove, l'insieme è *saturo*. Per la completezza per refutazione, l'assenza della clausola vuota significa che $"KB" ∧ ¬alpha$ è soddisfacibile, quindi $alpha$ non segue dalla KB.
+
+L'algoritmo termina perché, con un numero finito di simboli e senza duplicati, esistono solo finitissime clausole distinte. Nel caso peggiore il loro numero è esponenziale.
+
+=== Esempio: dimostrare l'assenza di un pozzo
+
+Siano $"KB" = (B_(1,1) ⇔ (P_(1,2) ∨ P_(2,1))) ∧ ¬B_(1,1)$ e la domanda $alpha = ¬P_(1,2)$.
+
+Alla CNF precedente aggiungiamo $¬B_(1,1)$ e la *negazione della domanda*, cioè $P_(1,2)$:
+1. Da $¬P_(1,2) ∨ B_(1,1)$ e $¬B_(1,1)$ ricaviamo $¬P_(1,2)$.
+2. Da $¬P_(1,2)$ e $P_(1,2)$ ricaviamo $⊥$.
+
+Questi due passi bastano per la refutazione: non occorre generare tutte le altre clausole che compaiono nel diagramma completo delle slide.
+
+== Horn clauses e chaining
+
+Per una classe più ristretta di formule possiamo evitare la ricerca generale per risoluzione e usare il *forward chaining* o il *backward chaining*.
+
+Una *clausola di Horn* contiene al massimo un letterale positivo. La forma usata per il chaining nelle slide è quella delle *clausole definite*, con esattamente un letterale positivo:
+- un fatto atomico, come $C$;
+- una regola $P_1 ∧ dots ∧ P_k ⇒ Q$, dove premesse e conclusione sono simboli positivi.
+
+La regola equivale alla clausola $¬P_1 ∨ dots ∨ ¬P_k ∨ Q$. Ad esempio:
+
+$ C ∧ (B ⇒ A) ∧ ((C ∧ D) ⇒ B) $
+
+La regola di inferenza fondamentale è il *Modus Ponens generalizzato*:
+
+$ frac(P_1 quad dots quad P_k quad (P_1 ∧ dots ∧ P_k ⇒ Q), Q) $
+
+Quando tutte le premesse sono note, possiamo aggiungere la conclusione. Questo basta per derivare tutte le *conseguenze atomiche* di una KB di clausole definite. Non afferma che qualsiasi formula proposizionale possa essere trattata allo stesso modo.
+
+=== Base di conoscenza dell'esempio
+
+Usiamo gli stessi fatti e le stesse regole per confrontare le due direzioni di ragionamento:
+
+$ A, quad B, quad (A ∧ B ⇒ L), quad (A ∧ P ⇒ L) $
+$ B ∧ L ⇒ M, quad L ∧ M ⇒ P, quad P ⇒ Q $
+
+La domanda è: *segue $Q$?* La regola $A ∧ P ⇒ L$ introduce un ciclo nelle dipendenze, perché $P$ dipende a sua volta da $L$. La presenza del ciclo non fornisce da sola una prova: servono i fatti iniziali e regole effettivamente applicabili.
+
+== Forward chaining
+
+Il *forward chaining* (FC) parte dai fatti noti e applica le regole di cui conosce tutte le premesse, aggiungendo via via le conclusioni. Si ferma quando trova la domanda oppure quando non riesce più a derivare nuovi fatti.
+
+Nell'esempio:
+1. Dai fatti $A$ e $B$, usando $A ∧ B ⇒ L$, deriviamo $L$.
+2. Da $B$ e $L$ deriviamo $M$.
+3. Da $L$ e $M$ deriviamo $P$.
+4. Da $P$ deriviamo $Q$ e rispondiamo positivamente.
+
+La regola ciclica $A ∧ P ⇒ L$ può poi ridare $L$, ma non aggiunge una nuova informazione.
+
+#figure(
+  grid(
+    columns: (1fr, 1fr),
+    gutter: 10pt,
+    align: center,
+    [#image("assets/logical-chaining-57.png", width: 62%)\ *Derivati $L$ e $M$*],
+    [#image("assets/logical-chaining-61.png", width: 62%)\ *Raggiunta la conclusione $Q$*],
+  ),
+)
+
+Nel grafo i nodi sono proposizioni; le congiunzioni di premesse appartengono alla stessa regola. I contatori rossi indicano quante premesse devono ancora essere elaborate prima di attivarla.
+
+=== Algoritmo con agenda e contatori
+
+Per evitare di ricontrollare continuamente tutte le regole usiamo:
+- *agenda*: fatti noti ancora da elaborare;
+- *inferred*: indica quali simboli sono già stati elaborati, evitando duplicati e cicli;
+- *count*: per ogni regola, il numero di premesse ancora da elaborare.
+
+```purs
+function PL-FC-Entails(KB, q) returns true or false
+    count[c] <- number of premises of each rule c
+    inferred[p] <- false for every symbol p
+    agenda <- atomic facts in KB
+
+    while agenda is not empty do
+        p <- Pop(agenda)
+        if p = q then return true
+
+        if not inferred[p] then
+            inferred[p] <- true
+            for each rule c with p in its premises do
+                count[c] <- count[c] - 1
+                if count[c] = 0 then
+                    Push(Head[c], agenda)
+
+    return false
+```
+
+Quando un contatore arriva a zero, la conclusione della regola entra nell'agenda. Il controllo della domanda anche sui fatti estratti copre il caso in cui $q$ fosse già noto inizialmente.
+
+Indicizzando le regole per i simboli presenti nelle premesse, ogni simbolo viene elaborato una sola volta e ogni occorrenza in una premessa causa un solo aggiornamento. Il costo è *lineare nella dimensione della KB*, cioè nel numero complessivo di occorrenze dei simboli.
+
+#block(breakable: false)[
+=== Perché il forward chaining è completo?
+
+La correttezza deriva dal Modus Ponens: ogni fatto aggiunto segue dalle premesse. Per la completezza, consideriamo l'esecuzione fino al *punto fisso*, quando non ci sono più fatti nuovi:
+1. Costruiamo un modello $m$ che rende veri esattamente i simboli derivati, e falsi gli altri.
+2. Tutti i fatti iniziali sono veri in $m$.
+3. Ogni regola della KB è vera in $m$. Se una regola $P_1 ∧ dots ∧ P_k ⇒ Q$ fosse falsa, tutte le premesse sarebbero state derivate ma non $Q$: allora la regola sarebbe ancora applicabile, contro l'ipotesi di punto fisso.
+4. Quindi $m$ è un modello della KB. Ogni conseguenza atomica della KB deve essere vera anche in $m$, e dunque essere stata derivata.
+
+Questo è il *modello minimo* della KB di clausole definite: contiene solo i fatti forzati dalle regole e dai fatti iniziali. Se un atomo non viene derivato, $m$ è un controesempio al suo entailment; non significa però che la KB ne implichi la negazione.
+]
+
+== Backward chaining
+
+Il *backward chaining* (BC) parte dalla domanda $q$ e cerca che cosa sarebbe necessario dimostrare per ottenerla:
+1. Se $q$ è già un fatto noto, il sottoproblema è risolto.
+2. Altrimenti cerchiamo una regola che abbia $q$ come conclusione e proviamo a dimostrarne tutte le premesse.
+3. Se una regola non porta a una prova, proviamo le altre regole che concludono $q$.
+
+Le premesse di una singola regola formano un nodo *AND*: vanno provate tutte. Le regole alternative con la stessa conclusione formano una scelta *OR*: basta che una abbia successo.
+
+=== Esempio e gestione dei cicli
+
+Per dimostrare $Q$ nella KB precedente:
+- $Q$ richiede $P$.
+- $P$ richiede $L$ e $M$.
+- Per $L$ possiamo usare $A ∧ B ⇒ L$: entrambi sono fatti noti, quindi $L$ è provato.
+- $M$ richiede $B$ e $L$, già disponibili.
+- Abbiamo quindi provato $M$, poi $P$ e infine $Q$.
+
+#figure(
+  grid(
+    columns: (1fr, 1fr),
+    gutter: 10pt,
+    align: center,
+    [#image("assets/logical-chaining-67.png", width: 62%)\ *Scomposizione in sottobiettivi*],
+    [#image("assets/logical-chaining-71.png", width: 62%)\ *Prova completata dai fatti*],
+  ),
+)
+
+Se per provare $L$ scegliessimo invece $A ∧ P ⇒ L$, ci verrebbe richiesto $P$, che è già tra gli obiettivi attivi. Controllare lo *stack dei goal* permette di riconoscere il ciclo: quel ramo non è una prova e bisogna considerare l'altra regola per $L$.
+
+Per evitare lavoro ripetuto memorizziamo i sottobiettivi già dimostrati e i fallimenti definitivamente stabiliti. Un ramo bloccato da un ciclo, però, non basta per dichiarare il sottobiettivo impossibile: potrebbero esserci altre regole che lo provano. La gestione dei risultati deve tener conto delle dipendenze cicliche.
+
+=== Forward vs. backward chaining
+
+#table(
+  columns: (1fr, 1fr),
+  inset: 7pt,
+  table.header([*Forward chaining*], [*Backward chaining*]),
+  [*Data-driven*: parte dai fatti disponibili.],
+  [*Goal-driven*: parte dalla domanda da dimostrare.],
+  [Propaga le conseguenze; può produrre fatti irrilevanti per la domanda corrente.],
+  [Esplora le regole e i fatti necessari al goal, evitando parti non pertinenti della KB.],
+  [Adatto a reazioni ai nuovi dati, riconoscimento e decisioni di routine.],
+  [Adatto a domande mirate e problem solving, ad esempio capire dove cercare le chiavi.],
+)
+
+Per KB proposizionali di clausole definite e domande atomiche, entrambi possono essere implementati come procedure *corrette, complete e lineari nella dimensione della KB*, con una gestione adeguata di indici, risultati e cicli. Una ricerca all'indietro ingenua che ripete i sottoproblemi può invece fare molto più lavoro.
+
+Con gli indici già disponibili, BC può esaminare solo una piccola parte della KB e impiegare anche molto meno del tempo necessario a leggerla tutta. FC è utile quando vogliamo aggiornare molte conseguenze dei dati; BC quando abbiamo una domanda specifica.
+
+== Limiti della rappresentazione proposizionale
+
+Il Wumpus World richiede di rappresentare informazioni *parziali*, anche *negative*, e di ragionare per casi. La logica proposizionale lo consente, ma richiede un simbolo diverso per ogni fatto concreto, come $P_(1,2)$ e $P_(2,2)$.
+
+Non dispone di variabili logiche, quantificatori e relazioni con cui esprimere direttamente “per ogni casella, la brezza è presente se e solo se esiste un pozzo adiacente”. Occorre scrivere le singole istanze della regola per le diverse caselle, e anche per i diversi istanti se rappresentiamo il tempo.
+
+L'agente logico può quindi dedurre nuove informazioni e scegliere azioni attraverso la KB, ma la *capacità espressiva del linguaggio* e il *costo dell'inferenza* determinano quali problemi riesce a trattare. La logica del primo ordine estende la rappresentazione introducendo oggetti, relazioni e quantificatori.
+
+#pagebreak()
+
+= Representing Uncertainty
+
+#let cavity = math.italic("cavity")
+#let toothache = math.italic("toothache")
+#let catch = math.italic("catch")
+
+== Ragionare e decidere nell'incertezza
+
+Un agente può conoscere le regole dell'ambiente senza sapere esattamente che cosa accadrà. L'incertezza può dipendere da *osservabilità parziale*, *sensori rumorosi*, *esiti delle azioni non certi* oppure dalla complessità di un modello troppo dettagliato per essere costruito e utilizzato.
+
+*Esempio: raggiungere l'aeroporto*. Sia $A_t$ l'azione di partire $t$ minuti prima del volo. Partire 25 minuti prima ci farà arrivare in tempo? Non conosciamo lo stato completo del traffico, i piani degli altri guidatori e gli imprevisti; anche i bollettini potrebbero essere inesatti.
+
+Una descrizione puramente logica rischia di affermare troppo, “$A_25$ mi farà arrivare in tempo”, oppure troppo poco: “arriverò in tempo se non ci sono incidenti, non piove, non foro una gomma…”. Enumerare tutte le condizioni non è praticabile. Partire un giorno prima è quasi certamente sufficiente, ma potrebbe essere una pessima scelta rispetto alle nostre preferenze.
+
+=== Modi di trattare l'incertezza
+
+- *Logiche di default o non monotone*: assumiamo, ad esempio, che l'auto non abbia una gomma a terra, finché non emergono prove contrarie. Nuove informazioni possono far ritirare conclusioni precedenti. Bisogna però decidere quali assunzioni siano ragionevoli e come risolvere i conflitti.
+- *Fuzzy logic*: rappresenta un *grado di verità*, ad esempio quanto un prato soddisfi il concetto graduale di “bagnato”. Questo è diverso dall'incertezza sul fatto che una proposizione sia vera o falsa.
+- *Probabilità*: rappresenta un *grado di credenza* sulla base delle informazioni disponibili. Dire che arrivare in tempo ha probabilità $0.04$ non significa che “arrivare in tempo” sia vero al 4%.
+
+Le probabilità riassumono sia la scelta di non elencare tutte le eccezioni e condizioni, sia l'*ignoranza* di fatti rilevanti. Nell'interpretazione *soggettiva o bayesiana* dipendono dallo stato di conoscenza dell'agente.
+
+Ad esempio, la probabilità di successo di $A_25$ può passare da $0.04$ a $0.06$ sapendo che non sono segnalati incidenti, e a $0.15$ sapendo anche che sono le cinque del mattino. Cambia la credenza alla luce dell'evidenza, non il significato della proposizione.
+
+=== Decision theory e Maximum Expected Utility
+
+Supponiamo di stimare le seguenti probabilità di arrivare in tempo:
+
+#align(center, table(
+  columns: 4,
+  align: center,
+  inset: 6pt,
+  table.header([$A_25$], [$A_90$], [$A_120$], [$A_1440$]),
+  [$0.04$], [$0.70$], [$0.95$], [$0.9999$],
+))
+
+La probabilità di successo da sola non basta per scegliere: dobbiamo confrontare il costo di perdere il volo con quello di aspettare molte ore in aeroporto.
+
+La *teoria dell'utilità* rappresenta le preferenze sugli esiti. La *teoria delle decisioni* combina utilità e probabilità: il principio di *Maximum Expected Utility* (MEU) sceglie l'azione con l'utilità attesa maggiore, mediando su tutti i suoi possibili esiti.
+
+$ "EU"(a | e) = sum_s P(s | a,e) U(s,a) $
+$ a^* = arg max_a "EU"(a | e) $
+
+Qui $e$ è l'evidenza disponibile, $s$ un possibile esito e $U(s,a)$ l'utilità associata. Un'azione con probabilità di successo più alta può avere utilità attesa inferiore se comporta costi troppo elevati.
+
+== Probability basics
+
+=== Spazio campionario ed eventi
+
+Nel caso *discreto* partiamo da uno *spazio campionario* $Omega$, l'insieme dei possibili esiti elementari. Ogni $omega in Omega$ è un punto campionario, un possibile mondo o un *evento atomico*.
+
+Un modello probabilistico assegna una probabilità a ciascun esito, rispettando:
+
+$ 0 <= P(omega) <= 1, quad sum_(omega in Omega) P(omega) = 1 $
+
+Un *evento* $A$ è un sottoinsieme di $Omega$. La sua probabilità è la somma delle probabilità degli esiti che lo compongono:
+
+$ P(A) = sum_(omega in A) P(omega) $
+
+*Esempio*: per un dado equo $Omega={1,2,3,4,5,6}$ e ogni faccia ha probabilità $1/6$. L'evento “esce un numero minore di 4” è ${1,2,3}$, quindi ha probabilità $3/6=1/2$.
+
+=== Random variables e proposizioni
+
+Una *variabile aleatoria* associa a ogni esito $omega$ un valore: $X: Omega -> D_X$. La distribuzione indotta è:
+
+$ P(X=x) = sum_(omega: X(omega)=x) P(omega) $
+
+Ad esempio, la variabile booleana *Odd* indica se il risultato del dado è dispari: $P("Odd"="true")=P(1)+P(3)+P(5)=1/2$.
+
+Possiamo avere variabili:
+- *Booleane*: ad esempio *Cavity*, presenza o assenza di una carie.
+- *Discrete*, con dominio finito o numerabile: *Dice_roll* assume valori da 1 a 6; *Weather* assume i valori sunny, rain, cloudy e snow.
+- *Continue*: ad esempio *Temp*, con valori reali, per cui possiamo esprimere eventi come $"Temp"<22$.
+
+I valori possibili di una variabile devono essere *mutuamente esclusivi ed esaustivi*: ogni esito assegna esattamente uno di quei valori.
+
+Le proposizioni sono combinazioni booleane di affermazioni sui valori delle variabili. Per una variabile booleana $A$, la minuscola $a$ abbrevia $A="true"$, mentre $¬a$ significa $A="false"$.
+
+Come nella logica, una proposizione identifica i mondi in cui è vera. Gli eventi $a ∧ b$, $a ∨ b$ e $¬a$ corrispondono rispettivamente a intersezione, unione e complemento degli insiemi di mondi.
+
+=== Atomic events e coerenza delle probabilità
+
+Un assegnamento *completo* alle variabili discrete del modello identifica un evento atomico. Con *Cavity* e *Toothache*, ad esempio, $cavity ∧ ¬toothache$ è completo; $cavity$ da solo no.
+
+Gli eventi atomici sono:
+- *mutuamente esclusivi*: due assegnamenti completi diversi non possono verificarsi insieme;
+- *esaustivi*: uno degli assegnamenti deve verificarsi;
+- sufficienti a determinare la verità di ogni proposizione del modello.
+
+Ogni proposizione equivale alla disgiunzione degli eventi atomici in cui è vera. Per esempio:
+
+$ cavity ≡ (cavity ∧ toothache) ∨ (cavity ∧ ¬toothache) $
+
+Analogamente, $a ∨ b$ contiene tre casi disgiunti: $¬a ∧ b$, $a ∧ ¬b$ e $a ∧ b$. Sommando le probabilità ricaviamo la regola:
+
+$ P(a ∨ b) = P(a)+P(b)-P(a ∧ b) $
+
+Sottraiamo l'intersezione perché sarebbe stata contata due volte. Se gli eventi sono incompatibili, l'intersezione ha probabilità zero. Seguono anche $P(¬a)=1-P(a)$, $P(Omega)=1$ e $P(∅)=0$.
+
+Le regole impongono *coerenza* tra credenze relative a eventi collegati logicamente. L'argomento delle scommesse di *de Finetti* mostra che, se le valutazioni violano gli assiomi, un agente disposto ad accettare scommesse a quei prezzi può subire una perdita certa qualunque sia l'esito.
+
+== Distribuzioni di probabilità
+
+=== Prior probability
+
+Una probabilità *a priori* o *non condizionata* descrive la credenza prima di incorporare la nuova evidenza. Ad esempio:
+
+$ P(cavity)=0.2, quad P("Weather"="sunny")=0.72 $
+
+Usiamo $P(X)$ per indicare l'intera distribuzione della variabile, mentre $P(X=x)$ è una sua componente. Per *Weather*, nell'ordine sunny, rain, cloudy, snow:
+
+$ P("Weather") = [0.72, 0.10, 0.08, 0.10] $
+
+I valori sommano a 1: la distribuzione è *normalizzata*.
+
+=== Joint probability
+
+La *distribuzione congiunta* assegna una probabilità a ogni combinazione dei valori delle variabili. Nell'esempio:
+
+#align(center, table(
+  columns: 5,
+  align: center,
+  inset: 6pt,
+  table.header([*Cavity / Weather*], [sunny], [rain], [cloudy], [snow]),
+  [true], [$0.144$], [$0.020$], [$0.016$], [$0.020$],
+  [false], [$0.576$], [$0.080$], [$0.064$], [$0.080$],
+))
+
+Le otto celle formano $P("Weather","Cavity")$ e la loro somma è 1. Sommando una riga otteniamo la probabilità del relativo valore di *Cavity*; sommando una colonna, quella del relativo valore di *Weather*.
+
+La congiunta completa contiene tutto ciò che serve per rispondere alle domande probabilistiche sulle variabili del modello: ogni evento è una somma di eventi atomici. Il problema sarà il numero di valori necessari per rappresentarla.
+
+=== Variabili continue: densità
+
+Per una variabile con distribuzione continua descritta da una *densità* $f_X$, la probabilità è un'*area*, ottenuta tramite un integrale:
+
+$ P(a <= X <= b) = integral_a^b f_X(x) thin d x, quad integral_(-infinity)^infinity f_X(x) thin d x = 1 $
+
+Il valore $f_X(x)$ non è la probabilità del singolo punto: per queste distribuzioni $P(X=x)=0$. La densità descrive quanto è concentrata la probabilità in un intorno del punto e può anche superare 1.
+
+*Distribuzione uniforme su $[18,26]$*: la densità è $1/(26-18)=0.125$ nell'intervallo e zero fuori. Quindi:
+
+$ P(20 <= X <= 22) = 2 dot 0.125 = 0.25 $
+
+Scrivere $f_X(20.5)=0.125$ significa:
+
+$ lim_(Delta x -> 0^+) frac(P(20.5 <= X <= 20.5+Delta x), Delta x) = 0.125 $
+
+#block(breakable: false)[
+*Distribuzione gaussiana*: con media $mu$ e deviazione standard $sigma>0$:
+
+$ f_X(x) = frac(1, sigma sqrt(2 pi)) exp(-frac((x-mu)^2, 2 sigma^2)) $
+]
+
+La probabilità negli intervalli $mu ± sigma$, $mu ± 2 sigma$ e $mu ± 3 sigma$ è rispettivamente circa il *68.2%*, *95.4%* e *99.7%*. La figura è centrata su $mu=0$.
+
+#figure(
+  grid(
+    columns: (1fr, 1fr),
+    gutter: 10pt,
+    align: center + horizon,
+    [#image("assets/uncertainty-uniform.png", width: 90%)\ *Uniforme: area del rettangolo*],
+    [#image("assets/uncertainty-gaussian.png", width: 90%)\ *Gaussiana: area sotto la curva*],
+  ),
+)
+
+== Conditional probability
+
+Una probabilità *condizionata* o *a posteriori* incorpora una specifica evidenza. Ad esempio $P(cavity | toothache)=0.6$ esprime la credenza nella carie sapendo del mal di denti, senza aggiungere altre osservazioni al modello dell'esempio.
+
+Non è un'implicazione logica e non assegna una probabilità alla formula $toothache ⇒ cavity$. Definiamo:
+
+$ P(a | b) = frac(P(a ∧ b), P(b)), quad P(b)>0 $
+
+Condizionare significa restringere l'attenzione ai mondi in cui $b$ è vera e normalizzare le loro probabilità.
+
+Se sappiamo anche che la carie è presente, allora $P(cavity | toothache,cavity)=1$. La precedente probabilità $0.6$ continua a descrivere il caso con evidenza meno specifica, ma non è più la risposta adatta alla nuova domanda.
+
+Nuove informazioni possono anche essere irrilevanti: se il modello lo consente,
+
+$ P(cavity | toothache,"sunny") = P(cavity | toothache) $
+
+Questa uguaglianza è un'ipotesi di indipendenza pertinente al dominio, non una proprietà automatica di qualsiasi nuova evidenza.
+
+La scrittura $P("Cavity" | "Toothache")$ indica una *famiglia di distribuzioni*: una distribuzione sui valori di *Cavity* per ogni valore di *Toothache*.
+
+=== Product rule e chain rule
+
+Dalla definizione di condizionamento ricaviamo la *regola del prodotto*:
+
+$ P(a ∧ b) = P(a | b)P(b) = P(b | a)P(a) $
+
+La stessa scrittura per intere distribuzioni, ad esempio $P("Weather","Cavity")=P("Weather"|"Cavity")P("Cavity")$, rappresenta un insieme di uguaglianze *per ciascuna combinazione di valori*: non è un prodotto matriciale.
+
+Applicando ripetutamente la regola otteniamo la *chain rule*:
+
+$ P(X_1,dots,X_n) = product_(i=1)^n P(X_i | X_1,dots,X_(i-1)) $
+
+Il primo fattore è $P(X_1)$. Con tre variabili, ad esempio:
+
+$ P(A,B,C) = P(A)P(B|A)P(C|A,B) $
+
+La chain rule vale per qualsiasi ordine delle variabili, senza assumere indipendenza. Cambiano i fattori condizionati, ma non la distribuzione congiunta rappresentata.
+
+== Inference by enumeration
+
+Per calcolare la probabilità di una proposizione $phi$ sommiamo le probabilità degli eventi atomici in cui è vera:
+
+$ P(phi) = sum_(omega: omega ⊨ phi) P(omega) $
+
+Gli eventi atomici sono disgiunti, quindi non rischiamo di contare due volte lo stesso mondo. Questa è la versione probabilistica del ragionamento sui modelli: oltre a distinguere mondi compatibili e incompatibili, assegniamo loro un peso.
+
+=== Esempio: Cavity, Toothache e Catch
+
+Consideriamo tre variabili booleane: *Cavity* (carie), *Toothache* (mal di denti) e *Catch* (la sonda si incastra nel dente). Abbreviamo i relativi eventi positivi con $c,t,k$.
+
+La distribuzione congiunta delle slide è:
+
+#align(center, table(
+  columns: 5,
+  align: center,
+  inset: 6pt,
+  table.header([], [$t ∧ k$], [$t ∧ ¬k$], [$¬t ∧ k$], [$¬t ∧ ¬k$]),
+  [$c$], [$0.108$], [$0.012$], [$0.072$], [$0.008$],
+  [$¬c$], [$0.016$], [$0.064$], [$0.144$], [$0.576$],
+))
+
+Ogni cella è un evento atomico sulle tre variabili; le otto probabilità sommano a 1.
+
+*Probabilità del mal di denti*: sommiamo le celle delle prime due colonne:
+
+$ P(t)=0.108+0.012+0.016+0.064=0.2 $
+
+*Probabilità di carie oppure mal di denti*: includiamo l'intera riga $c$ e le celle della riga $¬c$ in cui vale $t$:
+
+$ P(c ∨ t)=0.108+0.012+0.072+0.008+0.016+0.064=0.28 $
+
+*Probabilità di non avere carie, dato il mal di denti*:
+
+$ P(¬c|t)=frac(P(¬c ∧ t),P(t))=frac(0.016+0.064,0.2)=0.4 $
+
+Quindi $P(c|t)=0.6$: il mal di denti aumenta la credenza nella carie rispetto al valore a priori $P(c)=0.2$, senza renderla certa.
+
+=== Normalization e variabili nascoste
+
+Spesso è più comodo calcolare tutte le componenti non normalizzate della risposta e dividerle per la loro somma. Scriviamo:
+
+$ P("Cavity"|t)=alpha P("Cavity",t) $
+$ = alpha [P("Cavity",t,k)+P("Cavity",t,¬k)] $
+$ = alpha [0.108+0.012, 0.016+0.064] $
+$ = alpha [0.12,0.08]=[0.6,0.4] $
+
+Le componenti sono nell'ordine *carie presente, carie assente*. La costante $alpha=1/(0.12+0.08)=5$ normalizza il vettore. Abbiamo fissato l'evidenza $t$ e *sommato via* la variabile non osservata *Catch*: questa operazione è la *marginalizzazione*.
+
+In generale dividiamo le variabili del modello in:
+- $Y$: *variabili della domanda* (*query*);
+- $E$: *variabili di evidenza*, fissate ai valori $e$;
+- $H$: *variabili nascoste*, cioè tutte le altre.
+
+La risposta è:
+
+$ P(Y|E=e)=alpha sum_h P(Y,E=e,H=h) $
+
+La somma comprende tutti gli assegnamenti congiunti alle variabili nascoste; $alpha$ è una costante comune a tutte le componenti della distribuzione richiesta.
+
+Con $n$ variabili e al massimo $d$ valori per variabile, la congiunta completa ha fino a $d^n$ celle. La rappresentazione richiede *spazio esponenziale* e l'enumerazione può richiedere *tempo $O(d^n)$*. Inoltre, dovremmo conoscere o stimare tutti quei numeri: l'indipendenza serve anche a ridurre questo problema di specificazione.
+
+== Independence
+
+Due variabili $A$ e $B$ sono *indipendenti* se conoscere il valore dell'una non modifica la distribuzione dell'altra. Per tutti i valori pertinenti:
+
+$ P(A|B)=P(A), quad P(B|A)=P(B) $
+
+Le uguaglianze condizionate si riferiscono ai valori di evidenza con probabilità positiva. Una caratterizzazione equivalente, che non richiede divisioni, è:
+
+$ P(A,B)=P(A)P(B) $
+
+Nell'esempio, se il meteo è indipendente dall'intero gruppo di variabili dentali:
+
+$ P("Toothache","Catch","Cavity","Weather") $
+$ = P("Toothache","Catch","Cavity")P("Weather") $
+
+Invece di $2^3 dot 4=32$ celle memorizziamo $8+4=12$ valori in due tabelle. Per $n$ monete indipendenti, anche non eque, bastano $n$ probabilità di testa per ricostruire una congiunta con $2^n$ celle.
+
+L'indipendenza assoluta è potente, ma spesso rara tra le variabili dello stesso dominio. Carie e mal di denti, ad esempio, sono dipendenti. Possiamo però trovare una struttura più utile *condizionando su altre variabili*.
+
+=== Conditional independence
+
+*Catch* è condizionatamente indipendente da *Toothache* data *Cavity* se, una volta nota la presenza o assenza di carie, sapere del dolore non cambia la probabilità che la sonda si incastri:
+
+$ P("Catch"|"Toothache","Cavity")=P("Catch"|"Cavity") $
+
+L'ipotesi deve valere sia quando la carie è presente sia quando è assente:
+
+$ P(k|t,c)=P(k|c), quad P(k|t,¬c)=P(k|¬c) $
+
+Equivalentemente:
+
+$ P("Toothache"|"Catch","Cavity")=P("Toothache"|"Cavity") $
+$ P("Toothache","Catch"|"Cavity") $
+$ = P("Toothache"|"Cavity")P("Catch"|"Cavity") $
+
+Essere indipendenti *data la carie* non significa essere indipendenti senza questa informazione: osservare un sintomo può cambiare la credenza nella carie e, attraverso questa, anche nell'altro sintomo.
+
+=== Fattorizzare la congiunta
+
+Applichiamo la chain rule e poi l'indipendenza condizionata:
+
+$ P("Toothache","Catch","Cavity") $
+$ = P("Toothache"|"Catch","Cavity")P("Catch"|"Cavity")P("Cavity") $
+$ = P("Toothache"|"Cavity")P("Catch"|"Cavity")P("Cavity") $
+
+La tabella di tre variabili booleane ha otto celle e *sette parametri liberi*, perché la somma deve essere 1. Con questa fattorizzazione bastano:
+- una probabilità per *Cavity*;
+- due per *Toothache*, una per ciascun valore di *Cavity*;
+- due per *Catch*, sempre condizionate sui valori di *Cavity*.
+
+Abbiamo quindi *cinque parametri liberi*. Le probabilità complementari si ricavano sottraendo da 1.
+
+L'indipendenza condizionata permette di rappresentare una congiunta attraverso fattori più piccoli. Se ogni variabile dipende da un numero limitato di altre variabili e i domini hanno dimensione limitata, il numero di parametri può crescere linearmente con il numero di variabili. Non è però una garanzia per qualunque struttura di dipendenze.
+
+== Bayes' Rule
+
+Uguagliando le due forme della regola del prodotto, per $P(b)>0$ otteniamo:
+
+$ P(a|b)=frac(P(b|a)P(a),P(b)) $
+
+La probabilità *a posteriori* $P(a|b)$ combina la *likelihood* $P(b|a)$, cioè quanto l'evidenza è compatibile con l'ipotesi, e il *prior* $P(a)$. Il denominatore è la probabilità dell'evidenza e normalizza il risultato.
+
+Per intere distribuzioni:
+
+$ P(Y|X)=alpha P(X|Y)P(Y) $
+
+Bayes permette di passare dalla direzione *causale* alla direzione *diagnostica*: spesso è più semplice modellare la probabilità di un effetto data una causa e poi risalire alla causa osservando l'effetto.
+
+$ P("Cause"|"Effect")=frac(P("Effect"|"Cause")P("Cause"),P("Effect")) $
+
+=== Esempio numerico: l'importanza del prior
+
+Nell'esempio didattico delle slide, $M$ indica meningite e $S$ rigidità del collo. Il modello assume $P(s|m)=0.8$, $P(m)=0.0001$ e $P(s)=0.1$:
+
+$ P(m|s)=frac(0.8 dot 0.0001,0.1)=0.0008=0.08% $
+
+Anche se l'effetto è frequente quando la causa è presente, la probabilità inversa può essere piccola perché la causa è rara. *$P(s|m)$ e $P(m|s)$ rispondono a domande diverse*: ignorare il prior porta a confonderle.
+
+#block(breakable: false)[
+=== Bayes e indipendenza condizionata: Naive Bayes
+
+Per combinare mal di denti e sonda che si incastra:
+
+$ P("Cavity"|t,k)=alpha P(t,k|"Cavity")P("Cavity") $
+$ = alpha P(t|"Cavity")P(k|"Cavity")P("Cavity") $
+]
+
+Dalla tabella ricaviamo $P(t|c)=0.6$, $P(k|c)=0.9$, $P(t|¬c)=0.1$ e $P(k|¬c)=0.2$. I due pesi sono:
+
+$ w_c=0.6 dot 0.9 dot 0.2=0.108 $
+$ w_(¬c)=0.1 dot 0.2 dot 0.8=0.016 $
+
+Normalizzando otteniamo $P(c|t,k)=0.108/0.124 approx 0.871$, superiore a $P(c|t)=0.6$.
+
+Questo è un esempio di *modello Naive Bayes*: una causa comune e più effetti assunti *mutuamente indipendenti data la causa*:
+
+$ P(C,E_1,dots,E_n)=P(C) product_(i=1)^n P(E_i|C) $
+
+L'ipotesi riguarda la distribuzione degli effetti *a causa fissata*: gli effetti non devono essere indipendenti marginalmente. Inoltre, per più di due effetti la sola indipendenza a coppie non basta a giustificare l'intero prodotto.
+
+== Wumpus World: inferenza probabilistica
+
+Riprendiamo il Wumpus World del capitolo precedente: stesse percezioni locali, azioni e misura di prestazione. L'esplorazione logica permette di riconoscere caselle sicure e localizzare alcuni pericoli. Il nuovo problema nasce quando *nessuna delle prossime caselle è dimostrabilmente sicura* e dobbiamo confrontarne i rischi.
+
+Consideriamo il caso con brezza sia in $(1,2)$ sia in $(2,1)$ e nessuna brezza in $(1,1)$. Le tre caselle visitate sono prive di pozzi; le possibili nuove destinazioni sono $(1,3)$, $(2,2)$ e $(3,1)$.
+
+#figure(
+  grid(
+    columns: (1fr, 1fr),
+    gutter: 10pt,
+    align: center,
+    [#image("assets/uncertainty-wumpus-evidence.png", width: 88%)\ *Brezze e possibili pozzi*],
+    [#image("assets/uncertainty-wumpus-fringe.png", width: 88%)\ *Query, caselle vicine e resto del mondo*],
+  ),
+)
+
+=== Specificare il modello probabilistico
+
+Usiamo variabili booleane $P_(i,j)$ per la presenza di pozzi e $B_(i,j)$ per la brezza. Il modello comprende le 16 variabili dei pozzi su una griglia $4 times 4$ e soltanto le tre variabili di brezza osservate:
+
+$ P(P_(1,1),dots,P_(4,4),B_(1,1),B_(1,2),B_(2,1)) $
+
+Fattorizziamo nella direzione *cause → effetti*: prima la configurazione dei pozzi, poi le brezze che produce. Indicando con $bold(P)$ tutte le variabili dei pozzi e con $bold(B)$ le tre brezze:
+
+$ P(bold(P),bold(B))=P(bold(B)|bold(P))P(bold(P)) $
+
+- *Modello delle percezioni*: fissati tutti i pozzi, le brezze sono determinate. Il fattore vale 1 se ogni brezza corrisponde alla presenza di almeno un pozzo adiacente e ogni assenza di brezza all'assenza di pozzi adiacenti; vale 0 altrimenti.
+- *Prior sui pozzi*: ogni casella contiene un pozzo con probabilità $0.2$, indipendentemente dalle altre. Una configurazione con $n$ pozzi ha probabilità:
+
+$ P(bold(P))=product_(i=1)^4 product_(j=1)^4 P(P_(i,j))=0.2^n dot 0.8^(16-n) $
+
+Il prodotto si valuta sui valori assegnati nella configurazione. *Le configurazioni non sono equiprobabili*: hanno tutte lo stesso peso soltanto se hanno lo stesso numero di pozzi.
+
+=== Evidenza e domanda
+
+Le osservazioni sono:
+
+$ b=¬b_(1,1) ∧ b_(1,2) ∧ b_(2,1) $
+$ g=¬p_(1,1) ∧ ¬p_(1,2) ∧ ¬p_(2,1) $
+
+Qui $g$ raccoglie le caselle note prive di pozzi. La domanda è la distribuzione $P(P_(1,3)|g,b)$; la componente positiva indica il rischio di entrare in $(1,3)$.
+
+Per enumerazione diretta dovremmo sommare su tutti gli assegnamenti alle altre variabili dei pozzi non osservate:
+
+$ P(P_(1,3)|g,b)=alpha sum_u P(P_(1,3),u,g,b) $
+
+Il numero di assegnamenti cresce esponenzialmente con il numero di caselle. Tuttavia, le brezze osservate non dipendono direttamente da tutta la griglia.
+
+=== Usare l'indipendenza condizionata
+
+Separiamo le variabili dei pozzi in quattro gruppi:
+- *Query* $Q=P_(1,3)$.
+- *Known*: le tre variabili i cui valori sono fissati da $g$.
+- *Fringe* $F=(P_(2,2),P_(3,1))$: gli altri pozzi possibili adiacenti alle caselle osservate.
+- *Other* $O$: tutte le caselle rimanenti.
+
+Una volta fissati query, known e fringe, conoscere *Other* non cambia le brezze osservate:
+
+$ P(b|Q,g,F,O)=P(b|Q,g,F) $
+
+Espandiamo la domanda con la regola del prodotto e portiamo fuori dalla somma i termini che non dipendono da $o$:
+
+$ P(Q|g,b)=alpha sum_f sum_o P(b|Q,g,f,o)P(Q,g,f,o) $
+$ = alpha sum_f P(b|Q,g,f) sum_o P(Q,g,f,o) $
+
+Il prior indipendente sui pozzi permette di scrivere:
+
+$ P(Q,g,f,o)=P(Q)P(g)P(f)P(o) $
+
+Ora $sum_o P(o)=1$ e $P(g)$ è una costante rispetto ai valori della query. Assorbendola nella normalizzazione otteniamo:
+
+$ P(Q|g,b)=alpha' P(Q) sum_f P(b|Q,g,f)P(f) $
+
+Il calcolo riguarda soltanto *query e fringe*: le caselle lontane sono state eliminate senza enumerarne tutte le configurazioni. Servono entrambe le proprietà del modello: le percezioni dipendono dai vicini e i pozzi sono indipendenti a priori.
+
+=== Calcolo dei rischi: 0.31 e 0.86
+
+Abbreviamo $q=p_(1,3)$, $r=p_(2,2)$ e $s=p_(3,1)$. Date le caselle sicure, le due brezze impongono:
+
+$ (q ∨ r) ∧ (r ∨ s) $
+
+Con prior $0.2$ per ogni pozzo, le sole configurazioni compatibili sono:
+
+#align(center, table(
+  columns: 4,
+  align: center,
+  inset: 6pt,
+  table.header([$q$], [$r$], [$s$], [*Peso a priori*]),
+  [V], [V], [V], [$0.2 dot 0.2 dot 0.2=0.008$],
+  [V], [V], [F], [$0.2 dot 0.2 dot 0.8=0.032$],
+  [V], [F], [V], [$0.2 dot 0.8 dot 0.2=0.032$],
+  [F], [V], [V], [$0.8 dot 0.2 dot 0.2=0.032$],
+  [F], [V], [F], [$0.8 dot 0.2 dot 0.8=0.128$],
+))
+
+La somma dei pesi è $0.232$: normalizziamo le configurazioni compatibili dividendo per questo valore.
+
+*Pozzo in $(1,3)$*: sommiamo le prime tre righe:
+
+$ P(q|g,b)=frac(0.008+0.032+0.032,0.232)=frac(0.072,0.232) approx 0.31 $
+
+Equivalentemente, i pesi dei casi $q$ e $¬q$ sono $0.2(0.04+0.16+0.16)=0.072$ e $0.8(0.04+0.16)=0.16$. La distribuzione completa è circa $[0.31,0.69]$.
+
+*Pozzo in $(2,2)$*: sommiamo le righe in cui $r$ è vero:
+
+$ P(r|g,b)=frac(0.008+0.032+0.032+0.128,0.232)=frac(0.2,0.232) approx 0.86 $
+
+La distribuzione completa è circa $[0.86,0.14]$. Per simmetria, anche $(3,1)$ ha rischio circa $0.31$.
+
+Il pozzo centrale può spiegare *entrambe* le brezze da solo; senza quel pozzo servono due pozzi, uno in ciascuna casella laterale. Il modello a priori attribuisce pesi diversi a queste possibilità: non basta contare quante configurazioni le contengono.
+
+#colorful-boxes.colorbox(
+  title: "Key point",
+  color: "grey",
+  width: auto,
+)[
+  La logica esclude i mondi incompatibili con le osservazioni; la probabilità pesa e normalizza quelli rimasti. L'indipendenza permette di evitare di rappresentare ed enumerare tutta la congiunta. Per scegliere l'azione, ai rischi così calcolati vanno poi associate le utilità degli esiti.
+]
